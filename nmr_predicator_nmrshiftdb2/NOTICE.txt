@@ -1,0 +1,38 @@
+===========================================================================
+NMR Prediction Plugin for Moleditpy - Licensing Information
+===========================================================================
+
+This plugin includes software developed by third parties.
+Below are the licenses and copyright notices for the bundled libraries.
+
+---------------------------------------------------------------------------
+1. The Chemistry Development Kit (CDK)
+---------------------------------------------------------------------------
+File: lib/cdk-*.jar
+License: LGPL v2.1 (GNU Lesser General Public License, version 2.1)
+Source Code: https://github.com/cdk/cdk
+Copyright: The CDK Development Team
+
+This library is free software; you can redistribute it and/or modify it
+under the terms of the GNU Lesser General Public License as published by
+the Free Software Foundation; either version 2.1 of the License, or (at
+your option) any later version.
+
+Full text of the LGPL v2.1: See included lib/LICENSE.LGPL
+
+---------------------------------------------------------------------------
+2. nmrshiftdb2 Predictor
+---------------------------------------------------------------------------
+File: lib/predictorh.jar, lib/predictorc.jar
+License: AGPL (GNU Affero General Public License)
+Source Code: https://sourceforge.net/projects/nmrshiftdb2/
+Copyright: The nmrshiftdb2 Project
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+Full text of the AGPL: See included lib/LICENSE.AGPL
+
+===========================================================================
