@@ -7,7 +7,7 @@ from pathlib import Path
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QPushButton, 
     QTableWidget, QTableWidgetItem, QLabel, QComboBox, 
-    QCheckBox, QDoubleSpinBox, QMessageBox, QHeaderView, QProgressDialog
+    QCheckBox, QDoubleSpinBox, QMessageBox, QHeaderView, QProgressDialog, QFileDialog
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
 from rdkit import Chem
@@ -21,7 +21,7 @@ PTABLE = Chem.GetPeriodicTable()
 
 # --- Metadata (Plugin Development Manual Section 2) ---
 PLUGIN_NAME = "NMR Predictor (nmrshiftdb2)"
-PLUGIN_VERSION = "1.1.0"
+PLUGIN_VERSION = "1.1.1"
 PLUGIN_AUTHOR = "HiroYokoyama"
 PLUGIN_DESCRIPTION = "Predict 1H and 13C NMR shifts using nmrshiftdb2 (Java)."
 
