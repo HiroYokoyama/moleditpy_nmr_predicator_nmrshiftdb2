@@ -2,6 +2,7 @@ import os
 import shutil
 import subprocess
 import re
+import csv
 from pathlib import Path
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QPushButton, 
@@ -20,7 +21,7 @@ PTABLE = Chem.GetPeriodicTable()
 
 # --- Metadata (Plugin Development Manual Section 2) ---
 PLUGIN_NAME = "NMR Predictor (nmrshiftdb2)"
-PLUGIN_VERSION = "1.0.0"
+PLUGIN_VERSION = "1.1.0"
 PLUGIN_AUTHOR = "HiroYokoyama"
 PLUGIN_DESCRIPTION = "Predict 1H and 13C NMR shifts using nmrshiftdb2 (Java)."
 
@@ -37,6 +38,7 @@ class PredictorWorker(QThread):
         self.plugin_dir = plugin_dir
 
     def run(self):
+        temp_mol_path = None
         try:
             # Check Java
             if not shutil.which("java"):
@@ -50,82 +52,161 @@ class PredictorWorker(QThread):
                 self.error_signal.emit(f"JAR file not found:\n{jar_path}\nPlease download it from SourceForge.")
                 return
 
-            # Use input mol directly as requested (H atoms should already be present)
-            mol_calc = self.mol
-            if mol_calc.GetNumConformers() == 0:
-                from rdkit.Chem import AllChem
-                AllChem.EmbedMolecule(mol_calc, AllChem.ETKDG())
-            
+            from rdkit.Chem import AllChem
 
-            # Create temp file
+            # 1. 計算用コピーの作成
+            mol_calc = Chem.Mol(self.mol)
+
+            # 2. サニタイズ（念のため構造の整合性をチェック）
+            try:
+                Chem.SanitizeMol(mol_calc)
+            except:
+                pass
+
+            # 3. 既存の立体化学情報のクリア
+            # （「決められない」エラーの原因となる矛盾したフラグを除去）
+            Chem.RemoveStereochemistry(mol_calc)
+
+            # 5. 座標の強制再生成（重要）
+            # 既存の座標があっても無視して、RDKitにきれいな2D配置を作らせます。
+            # これにより、曖昧なオレフィンが E または Z のどちらかに幾何学的に確定します。
+            AllChem.Compute2DCoords(mol_calc)
+
+            # 6. 立体化学の再割り当て
+            # きれいな座標に基づいて、改めてフラグを立て直します。
+            Chem.AssignStereochemistry(mol_calc, force=True, cleanIt=True)
+            
+            # Set a generic name if missing (some readers crash on empty name)
+            if not mol_calc.HasProp("_Name"):
+                mol_calc.SetProp("_Name", "NMR_Calculation")
+            
+            # Ensure it has explicit Hydrogens and stereochemistry is perceived
+            Chem.AssignStereochemistry(mol_calc, force=True, cleanIt=True)
+            
+            # Create temp file in system temp directory
             import tempfile
-            fd, temp_mol_path_str = tempfile.mkstemp(suffix=".mol", prefix="nmrp_")
+            fd, temp_mol_path_str = tempfile.mkstemp(
+                suffix=".mol", 
+                prefix=f"nmrp_{self.nucleus}_"
+            )
             os.close(fd)
             temp_mol_path = Path(temp_mol_path_str)
             
             try:
-                Chem.MolToMolFile(mol_calc, str(temp_mol_path), forceV3000=False)
+                # Write a clean V2000 Molfile.
+                # includeStereo=False is CRITICAL to avoid parsing errors for alkenes in this backend.
+                mol_block = Chem.MolToMolBlock(mol_calc, forceV3000=False, includeStereo=False)
+                
+                # Use CRLF and preserve raw RDKit formatting (except for line endings)
+                # Manual padding was found to be detrimental for some readers.
+                refined_block = mol_block.replace("\n", "\r\n")
+                if not refined_block.endswith("\r\n"):
+                    refined_block += "\r\n"
+                
+                with open(temp_mol_path, "wb") as f:
+                    f.write(refined_block.encode("ascii", "ignore"))
+                
+                # Log for internal debugging (visible in Moledit log)
+                #print(f"NMR Predictor: Running {self.nucleus} calculation. Temp file: {temp_mol_path}")
 
-                # Build Java Classpath
-                # On Windows, use ';' separator. Dynamically find the CDK jar.
-                cdk_jars = list(self.plugin_dir.glob("lib/cdk-*.jar"))
-                if cdk_jars:
-                    classpath = f"{str(jar_path)};{str(cdk_jars[0])}"
-                else:
-                    # Fallback to current dir if not in lib
-                    classpath = str(jar_path)
+                # Build Java Classpath from ALL jars in the lib folder to ensure zero missing dependencies.
+                # Required as per documentation: predictor.jar, cdk-*, vecmath, jgrapht, guava, beam-core
+                
+                # Identify the specific predictor JAR for the requested nucleus
+                jar_name = "predictorh.jar" if self.nucleus == "1H" else "predictorc.jar"
+                jar_path = self.plugin_dir / "lib" / jar_name
+                
+                # Identify the "other" JAR to explicitly exclude it from the classpath
+                other_jar_name = "predictorc.jar" if self.nucleus == "1H" else "predictorh.jar"
 
-                # Build Java command using -cp and the 'Test' main class
+                if not jar_path.exists():
+                    self.error_signal.emit(f"Required JAR not found: {jar_name}\nPath: {jar_path}")
+                    return
+
+                # Build Java Classpath from ALL jars in the lib folder for robustness
+                # Ensure the requested predictor jar is ABSOLUTELY FIRST to avoid Classloader conflicts
+                jar_files = [jar_path]
+                
+                search_root = self.plugin_dir / "lib"
+                all_jars = list(search_root.glob("*.jar"))
+                for j in all_jars:
+                    # Exclude the other engine and avoid duplicates
+                    if j.name != other_jar_name and j.name != jar_name:
+                        jar_files.append(j)
+                
+                # Maintain order and ensure uniqueness
+                abs_jars = []
+                seen = set()
+                for j in jar_files:
+                    p = str(j.absolute())
+                    if p not in seen:
+                        abs_jars.append(p)
+                        seen.add(p)
+                
+                classpath = os.pathsep.join(abs_jars)
+
+                # Build Java command. Documentation says: java Test myfile.mol [solvent [no3d]]
+                # We omit optional flags to avoid environment-specific "solvent" validation errors.
                 cmd = ["java", "-Xmx512m", "-cp", classpath, "Test", str(temp_mol_path)]
                 
-                # Suppress console window on Windows
                 startupinfo = None
                 if os.name == 'nt':
                     startupinfo = subprocess.STARTUPINFO()
                     startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
-                # Run Java
+                # Run Java from the lib directory so it can find its internal resources
                 process = subprocess.run(
                     cmd,
                     capture_output=True,
                     text=True,
-                    check=True,
-                    startupinfo=startupinfo
+                    check=False, # Handle manually
+                    startupinfo=startupinfo,
+                    cwd=self.plugin_dir / "lib"
                 )
+
+                if process.returncode != 0:
+                    err_hint = process.stderr or process.stdout
+                    self.error_signal.emit(f"Java Prediction Failed (Code {process.returncode}):\n{err_hint[0:1000]}")
+                    return
 
                 # Parse output
                 predictions = []
                 output = process.stdout
                 
-                # Find occurrences of "index: val1 val2 val3"
-                # Even more flexible pattern: allow anything between digit and colon, and spaces
-                pattern = r"(\d+)\s*:\s*(\S+)\s+(\S+)\s+(\S+)"
+                # Correct pattern for "index: val1 val2" (3 columns total)
+                pattern = r"(\d+)\s*:\s*(\S+)\s+(\S+)"
                 matches = list(re.finditer(pattern, output))
                 
                 num_atoms = mol_calc.GetNumAtoms()
+                target_symbol = "H" if self.nucleus == "1H" else "C"
+                
                 for match in matches:
                     try:
                         idx_java = int(match.group(1)) - 1
-                        val_str = match.group(3)
+                        val_str = match.group(3) # Use the "mean" value
                         ppm = float(val_str)
                         
                         if 0 <= idx_java < num_atoms:
-                            atom_symbol = mol_calc.GetAtomWithIdx(idx_java).GetSymbol()
-                            predictions.append({
-                                "idx": idx_java,
-                                "atom": atom_symbol,
-                                "ppm": ppm
-                            })
+                            atom = mol_calc.GetAtomWithIdx(idx_java)
+                            atom_symbol = atom.GetSymbol()
+                            
+                            # Filter results to strictly match the requested nucleus
+                            # This prevents "Calculated for C" appearing in 1H mode.
+                            if atom_symbol == target_symbol:
+                                predictions.append({
+                                    "idx": idx_java,
+                                    "atom": atom_symbol,
+                                    "ppm": ppm
+                                })
                     except (ValueError, IndexError):
                         continue
 
                 if not predictions:
-                    # Detailed debug info for the user
                     err_msg = (
-                        f"No NMR peaks parsed from output.\n"
-                        f"Molecule Atoms: {num_atoms}\n"
-                        f"Matched lines: {len(matches)}\n"
-                        f"Raw Output (first 500 chars):\n{output[:500]}"
+                        f"No NMR peaks predicted.\n"
+                        f"Structure might be missing from the database or formatting is incompatible.\n"
+                        f"Raw Output:\n{output[:1000]}\n"
+                        f"Stderr:\n{process.stderr[:500]}"
                     )
                     self.error_signal.emit(err_msg)
                     return
@@ -134,23 +215,20 @@ class PredictorWorker(QThread):
                 self.finished_signal.emit({
                     "nucleus": self.nucleus,
                     "data": predictions,
-                    "mol_with_h": mol_calc # Return the molecule with Hs used for calculation
+                    "mol_with_h": mol_calc
                 })
 
             finally:
-                # Cleanup temp file
-                if temp_mol_path.exists():
-                    try:
-                        os.remove(temp_mol_path)
-                    except:
-                        pass
+                # Auto-delete temp file as requested by user
+                if temp_mol_path and temp_mol_path.exists():
+                    try: os.remove(temp_mol_path)
+                    except: pass
 
         except subprocess.CalledProcessError as e:
             self.error_signal.emit(f"Java Execution Error:\n{e.stderr}")
         except Exception as e:
             self.error_signal.emit(f"Unexpected Error: {str(e)}")
         finally:
-            # Cleanup worker reference is handled elsewhere or not needed here
             pass
 
 # --- 2. Result Dialog (GUI) ---
@@ -189,10 +267,6 @@ class ResultDialog(QDialog):
 
         ctrl_row = QHBoxLayout()
         
-        self.auto_scale_chk = QCheckBox("Auto Fit")
-        self.auto_scale_chk.toggled.connect(self.plot_spectrum)
-        ctrl_row.addWidget(self.auto_scale_chk)
-        
         ctrl_row.addWidget(QLabel("Range (ppm):"))
         self.min_ppm_spin = QDoubleSpinBox()
         self.min_ppm_spin.setRange(-50, 500)
@@ -210,6 +284,10 @@ class ResultDialog(QDialog):
         self.max_ppm_spin.setValue(12.0 if self.nucleus == "1H" else 220.0)
         self.max_ppm_spin.valueChanged.connect(self.plot_spectrum)
         ctrl_row.addWidget(self.max_ppm_spin)
+                
+        self.auto_scale_chk = QCheckBox("Auto Fit")
+        self.auto_scale_chk.toggled.connect(self.plot_spectrum)
+        ctrl_row.addWidget(self.auto_scale_chk)
         
         ctrl_row.addStretch()
         range_card.addLayout(ctrl_row)
@@ -259,12 +337,17 @@ class ResultDialog(QDialog):
         self.unselect_btn.clicked.connect(self.clear_selection)
         btn_row.addWidget(self.unselect_btn)
 
+        export_btn = QPushButton("Export CSV")
+        export_btn.setFixedWidth(100)
+        export_btn.clicked.connect(self.export_csv)
+        btn_row.addWidget(export_btn)
+
+        btn_row.addStretch()
+
         about_btn = QPushButton("About")
         about_btn.setFixedWidth(80)
         about_btn.clicked.connect(self.show_about)
         btn_row.addWidget(about_btn)
-        
-        btn_row.addStretch()
         
         close_btn = QPushButton("Close")
         close_btn.setFixedWidth(100)
@@ -351,51 +434,70 @@ class ResultDialog(QDialog):
         self.canvas.draw()
 
     def on_hover(self, event):
-        """Handle mouse movement over the plot."""
+        """マウス移動時の処理 - 選択状態を優先するよう修正"""
         if event.inaxes is None:
             if self._hover_idx != -1:
                 self._hover_idx = -1
                 self._update_graph_highlight(None, is_hover=True)
+                # 修正: 選択状態があれば復元、なければクリア
+                self._restore_persistent_highlight()
             return
             
-        # Find nearest peak
         shifts = [item["ppm"] for item in self.data]
-        if not shifts:
-            return
+        if not shifts: return
             
-        click_x = event.xdata
-        
-        # Calculate tolerance as 2% of current x-axis range width
         xlim = event.inaxes.get_xlim()
-        width = abs(xlim[1] - xlim[0])
-        tolerance = width * 0.02 # 2% range
+        tolerance = abs(xlim[1] - xlim[0]) * 0.02 
         
-        distances = [abs(s - click_x) for s in shifts]
+        distances = [abs(s - event.xdata) for s in shifts]
         min_idx = np.argmin(distances)
         
         if distances[min_idx] < tolerance: 
             if self._hover_idx != min_idx:
                 self._hover_idx = min_idx
-                ppm = shifts[min_idx]
-                self._update_graph_highlight(ppm, is_hover=True)
                 
-                # Highlight in 3D on hover
+                target_ppm = shifts[min_idx]
+                
+                # 修正: 現在選択中のバー（Persistent）にホバーした場合は何もしない（赤のまま維持）
+                # 「ハイライトされたバーは無効に」への対応
+                if self._persistent_ppm is not None and abs(target_ppm - self._persistent_ppm) < 1e-4:
+                    self._update_graph_highlight(None, is_hover=True) # オレンジ線は消す
+                    return
+
+                # 通常のホバー処理（未選択のバー）
+                self._update_graph_highlight(target_ppm, is_hover=True)
+                
+                # 3Dハイライト（一時的）
+                # highlight_atomを呼ぶと一時的にPersistent（赤）が消えるが、
+                # 下記のelseブロックでの復元処理により、離れると赤に戻るようになる。
                 self.highlight_atom(min_idx, persistent=False)
                 
-                # Update status bar with clear info
                 item = self.data[min_idx]
                 self.status_label.setText(f"Peak: {item['atom']}{item['idx']} at {item['ppm']:.2f} ppm")
-                self.status_label.setStyleSheet("color: #e67e22; font-weight: bold;") # Hint orange
+                self.status_label.setStyleSheet("color: #e67e22; font-weight: bold;")
         else:
+            # ピークから離れた場合
             if self._hover_idx != -1:
                 self._hover_idx = -1
                 self._update_graph_highlight(None, is_hover=True)
-                self.clear_3d_visuals()
-                self.status_label.setText("Hover over peaks to see in 3D.")
-                self.status_label.setStyleSheet("color: #444; font-weight: bold;")
+                self._restore_persistent_highlight()
+
+    def _restore_persistent_highlight(self):
+        """選択状態（Persistent）があれば復元し、なければクリアする"""
+        if self._persistent_ppm is not None:
+             # 選択状態を復元（ホバー前の状態に戻す）
+             for i, item in enumerate(self.data):
+                 if abs(item["ppm"] - self._persistent_ppm) < 1e-4:
+                     # persistent=Trueで呼び直すことで赤色に戻す
+                     self.highlight_atom(i, persistent=True)
+                     break
+        else:
+            self.clear_3d_visuals()
+            self.status_label.setText("Hover over peaks to see in 3D.")
+            self.status_label.setStyleSheet("color: #444; font-weight: bold;")
 
     def on_graph_click(self, event):
-        """Handle click on plot - only for table selection now."""
+        """Handle click on plot - Sync to Table and 3D Highlight."""
         if event.inaxes is None: return
         
         # Find nearest peak
@@ -415,14 +517,25 @@ class ResultDialog(QDialog):
         
         if distances[min_idx] < tolerance: 
             ppm = shifts[min_idx]
-            # Select ALL rows in the table with this PPM
+            
+            # 1. Update Table Selection (既存の処理: テーブルの行を選択状態にする)
             self.table.clearSelection()
             self.table.setSelectionMode(QTableWidget.SelectionMode.MultiSelection)
+            target_row = -1
             for i, item in enumerate(self.data):
+                # 同じPPMを持つ行をすべて選択
                 if abs(item["ppm"] - ppm) < 1e-4:
                     self.table.selectRow(i)
-            self.table.setSelectionMode(QTableWidget.SelectionMode.ExtendedSelection) # Back to normal-ish
-            # highlight_atom is now handled by hover
+                    if i == min_idx: target_row = i
+            self.table.setSelectionMode(QTableWidget.SelectionMode.ExtendedSelection)
+
+            # 2. Trigger Highlight (追加: ここで可視化メソッドを呼ぶ)
+            # これにより、グラフに赤い線が引かれ、3Dモデルに赤い球が表示されます
+            self.highlight_atom(min_idx, persistent=True)
+            
+        else:
+            # クリックがピークから遠い場合は選択解除
+            self.clear_selection()
 
     def on_table_click(self, row, col):
         self.highlight_atom(row)
@@ -619,6 +732,34 @@ class ResultDialog(QDialog):
             plotter.render()
         except:
             pass
+
+    def export_csv(self):
+        """Export table data to CSV."""
+        filename, _ = QFileDialog.getSaveFileName(
+            self, "Save CSV", "nmr_prediction.csv", "CSV Files (*.csv)"
+        )
+        
+        if not filename:
+            return
+
+        try:
+            with open(filename, mode='w', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                # ヘッダー書き込み
+                writer.writerow(["Atom ID", "Type", "Shift (ppm)"])
+                
+                # データ書き込み (self.data は計算結果のリスト)
+                for item in self.data:
+                    writer.writerow([
+                        item["idx"], 
+                        item["atom"], 
+                        f"{item['ppm']:.2f}"
+                    ])
+            
+            QMessageBox.information(self, "Success", f"Exported successfully to:\n{filename}")
+            
+        except Exception as e:
+            QMessageBox.critical(self, "Export Error", f"Failed to save file:\n{str(e)}")
 
     def closeEvent(self, event):
         """Cleanup on close."""
