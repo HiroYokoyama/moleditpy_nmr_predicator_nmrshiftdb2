@@ -15,21 +15,23 @@ import pyvista as pv
 import numpy as np
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas, NavigationToolbar2QT
 from matplotlib.figure import Figure
+import tempfile
+from rdkit.Chem import AllChem
 
 # Periodic table for VdW radii
 PTABLE = Chem.GetPeriodicTable()
 
 # --- Metadata (Plugin Development Manual Section 2) ---
 PLUGIN_NAME = "NMR Predictor (nmrshiftdb2)"
-PLUGIN_VERSION = "1.1.1"
+PLUGIN_VERSION = "1.1.2"
 PLUGIN_AUTHOR = "HiroYokoyama"
 PLUGIN_DESCRIPTION = "Predict 1H and 13C NMR shifts using nmrshiftdb2 (Java)."
 
 # --- 1. Background Worker (Java Execution) ---
 class PredictorWorker(QThread):
-    """計算中にGUIをフリーズさせないためのワーカースレッド"""
-    finished_signal = pyqtSignal(dict) # 成功時
-    error_signal = pyqtSignal(str)     # エラー時
+    """Worker thread to prevent GUI freeze during calculation"""
+    finished_signal = pyqtSignal(dict) # On success
+    error_signal = pyqtSignal(str)     # On error
 
     def __init__(self, mol, nucleus, plugin_dir):
         super().__init__()
@@ -52,28 +54,27 @@ class PredictorWorker(QThread):
                 self.error_signal.emit(f"JAR file not found:\n{jar_path}\nPlease download it from SourceForge.")
                 return
 
-            from rdkit.Chem import AllChem
 
-            # 1. 計算用コピーの作成
+            # 1. Create calculation copy
             mol_calc = Chem.Mol(self.mol)
 
-            # 2. サニタイズ（念のため構造の整合性をチェック）
+            # 2. Sanitize (Check structure integrity)
             try:
                 Chem.SanitizeMol(mol_calc)
-            except:
-                pass
+            except Exception as e:
+                print(f"Warning: Sanitization failed: {e}")
 
-            # 3. 既存の立体化学情報のクリア
-            # （「決められない」エラーの原因となる矛盾したフラグを除去）
+            # 3. Clear existing stereochemistry flags
+            # (Removes contradictory flags that cause "Unable to determine" errors)
             Chem.RemoveStereochemistry(mol_calc)
 
-            # 5. 座標の強制再生成（重要）
-            # 既存の座標があっても無視して、RDKitにきれいな2D配置を作らせます。
-            # これにより、曖昧なオレフィンが E または Z のどちらかに幾何学的に確定します。
+            # 5. Force coordinate regeneration (Critical)
+            # Ignore existing coords and let RDKit generate a clean 2D layout.
+            # This geometrically determines E/Z for ambiguous olefins.
             AllChem.Compute2DCoords(mol_calc)
 
-            # 6. 立体化学の再割り当て
-            # きれいな座標に基づいて、改めてフラグを立て直します。
+            # 6. Re-assign stereochemistry
+            # Re-flag based on the clean coordinates.
             Chem.AssignStereochemistry(mol_calc, force=True, cleanIt=True)
             
             # Set a generic name if missing (some readers crash on empty name)
@@ -84,7 +85,6 @@ class PredictorWorker(QThread):
             Chem.AssignStereochemistry(mol_calc, force=True, cleanIt=True)
             
             # Create temp file in system temp directory
-            import tempfile
             fd, temp_mol_path_str = tempfile.mkstemp(
                 suffix=".mol", 
                 prefix=f"nmrp_{self.nucleus}_"
@@ -109,41 +109,7 @@ class PredictorWorker(QThread):
                 # Log for internal debugging (visible in Moledit log)
                 #print(f"NMR Predictor: Running {self.nucleus} calculation. Temp file: {temp_mol_path}")
 
-                # Build Java Classpath from ALL jars in the lib folder to ensure zero missing dependencies.
-                # Required as per documentation: predictor.jar, cdk-*, vecmath, jgrapht, guava, beam-core
-                
-                # Identify the specific predictor JAR for the requested nucleus
-                jar_name = "predictorh.jar" if self.nucleus == "1H" else "predictorc.jar"
-                jar_path = self.plugin_dir / "lib" / jar_name
-                
-                # Identify the "other" JAR to explicitly exclude it from the classpath
-                other_jar_name = "predictorc.jar" if self.nucleus == "1H" else "predictorh.jar"
-
-                if not jar_path.exists():
-                    self.error_signal.emit(f"Required JAR not found: {jar_name}\nPath: {jar_path}")
-                    return
-
-                # Build Java Classpath from ALL jars in the lib folder for robustness
-                # Ensure the requested predictor jar is ABSOLUTELY FIRST to avoid Classloader conflicts
-                jar_files = [jar_path]
-                
-                search_root = self.plugin_dir / "lib"
-                all_jars = list(search_root.glob("*.jar"))
-                for j in all_jars:
-                    # Exclude the other engine and avoid duplicates
-                    if j.name != other_jar_name and j.name != jar_name:
-                        jar_files.append(j)
-                
-                # Maintain order and ensure uniqueness
-                abs_jars = []
-                seen = set()
-                for j in jar_files:
-                    p = str(j.absolute())
-                    if p not in seen:
-                        abs_jars.append(p)
-                        seen.add(p)
-                
-                classpath = os.pathsep.join(abs_jars)
+                classpath = self._build_classpath()
 
                 # Build Java command. Documentation says: java Test myfile.mol [solvent [no3d]]
                 # We omit optional flags to avoid environment-specific "solvent" validation errors.
@@ -159,47 +125,13 @@ class PredictorWorker(QThread):
                     cmd,
                     capture_output=True,
                     text=True,
-                    check=False, # Handle manually
+                    check=True, # Raise CalledProcessError on failure
                     startupinfo=startupinfo,
                     cwd=self.plugin_dir / "lib"
                 )
 
-                if process.returncode != 0:
-                    err_hint = process.stderr or process.stdout
-                    self.error_signal.emit(f"Java Prediction Failed (Code {process.returncode}):\n{err_hint[0:1000]}")
-                    return
-
                 # Parse output
-                predictions = []
-                output = process.stdout
-                
-                # Correct pattern for "index: val1 val2" (3 columns total)
-                pattern = r"(\d+)\s*:\s*(\S+)\s+(\S+)"
-                matches = list(re.finditer(pattern, output))
-                
-                num_atoms = mol_calc.GetNumAtoms()
-                target_symbol = "H" if self.nucleus == "1H" else "C"
-                
-                for match in matches:
-                    try:
-                        idx_java = int(match.group(1)) - 1
-                        val_str = match.group(3) # Use the "mean" value
-                        ppm = float(val_str)
-                        
-                        if 0 <= idx_java < num_atoms:
-                            atom = mol_calc.GetAtomWithIdx(idx_java)
-                            atom_symbol = atom.GetSymbol()
-                            
-                            # Filter results to strictly match the requested nucleus
-                            # This prevents "Calculated for C" appearing in 1H mode.
-                            if atom_symbol == target_symbol:
-                                predictions.append({
-                                    "idx": idx_java,
-                                    "atom": atom_symbol,
-                                    "ppm": ppm
-                                })
-                    except (ValueError, IndexError):
-                        continue
+                predictions = self._parse_output(process.stdout, mol_calc)
 
                 if not predictions:
                     err_msg = (
@@ -225,11 +157,66 @@ class PredictorWorker(QThread):
                     except: pass
 
         except subprocess.CalledProcessError as e:
-            self.error_signal.emit(f"Java Execution Error:\n{e.stderr}")
+            err_out = e.stderr if e.stderr else e.stdout
+            self.error_signal.emit(f"Java Execution Failed (Code {e.returncode}):\n{err_out}")
         except Exception as e:
             self.error_signal.emit(f"Unexpected Error: {str(e)}")
         finally:
             pass
+
+    def _build_classpath(self):
+        """Constructs the Java classpath, ensuring the correct predictor JAR is first."""
+        jar_name = "predictorh.jar" if self.nucleus == "1H" else "predictorc.jar"
+        jar_path = self.plugin_dir / "lib" / jar_name
+        other_jar_name = "predictorc.jar" if self.nucleus == "1H" else "predictorh.jar"
+
+        if not jar_path.exists():
+            raise FileNotFoundError(f"Required JAR not found: {jar_name}")
+
+        jar_files = [jar_path]
+        search_root = self.plugin_dir / "lib"
+        for j in list(search_root.glob("*.jar")):
+            if j.name != other_jar_name and j.name != jar_name:
+                jar_files.append(j)
+
+        abs_jars = []
+        seen = set()
+        for j in jar_files:
+            p = str(j.absolute())
+            if p not in seen:
+                abs_jars.append(p)
+                seen.add(p)
+        
+        return os.pathsep.join(abs_jars)
+
+    def _parse_output(self, output, mol):
+        """Parses the standard output from the Java prediction process."""
+        predictions = []
+        pattern = r"(\d+)\s*:\s*(\S+)\s+(\S+)"
+        matches = list(re.finditer(pattern, output))
+        
+        num_atoms = mol.GetNumAtoms()
+        target_symbol = "H" if self.nucleus == "1H" else "C"
+        
+        for match in matches:
+            try:
+                idx_java = int(match.group(1)) - 1
+                val_str = match.group(3)
+                ppm = float(val_str)
+                
+                if 0 <= idx_java < num_atoms:
+                    atom = mol.GetAtomWithIdx(idx_java)
+                    atom_symbol = atom.GetSymbol()
+                    
+                    if atom_symbol == target_symbol:
+                        predictions.append({
+                            "idx": idx_java,
+                            "atom": atom_symbol,
+                            "ppm": ppm
+                        })
+            except (ValueError, IndexError):
+                continue
+        return predictions
 
 # --- 2. Result Dialog (GUI) ---
 class ResultDialog(QDialog):
