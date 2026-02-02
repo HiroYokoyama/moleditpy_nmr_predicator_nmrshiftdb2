@@ -23,7 +23,7 @@ PTABLE = Chem.GetPeriodicTable()
 
 # --- Metadata (Plugin Development Manual Section 2) ---
 PLUGIN_NAME = "NMR Predictor (nmrshiftdb2)"
-PLUGIN_VERSION = "1.1.2"
+PLUGIN_VERSION = "1.2.0"
 PLUGIN_AUTHOR = "HiroYokoyama"
 PLUGIN_DESCRIPTION = "Predict 1H and 13C NMR shifts using nmrshiftdb2 (Java)."
 
@@ -192,7 +192,9 @@ class PredictorWorker(QThread):
     def _parse_output(self, output, mol):
         """Parses the standard output from the Java prediction process."""
         predictions = []
-        pattern = r"(\d+)\s*:\s*(\S+)\s+(\S+)"
+        # Regex to capture: Index : Min  Mean  Max
+        # Example: "  4:    0.87    4.11    6.81"
+        pattern = r"(\d+)\s*:\s*(\S+)\s+(\S+)\s+(\S+)"
         matches = list(re.finditer(pattern, output))
         
         num_atoms = mol.GetNumAtoms()
@@ -201,8 +203,13 @@ class PredictorWorker(QThread):
         for match in matches:
             try:
                 idx_java = int(match.group(1)) - 1
-                val_str = match.group(3)
-                ppm = float(val_str)
+                min_ppm_str = match.group(2)
+                mean_ppm_str = match.group(3)
+                max_ppm_str = match.group(4)
+                
+                ppm = float(mean_ppm_str)
+                min_ppm = float(min_ppm_str)
+                max_ppm = float(max_ppm_str)
                 
                 if 0 <= idx_java < num_atoms:
                     atom = mol.GetAtomWithIdx(idx_java)
@@ -212,7 +219,9 @@ class PredictorWorker(QThread):
                         predictions.append({
                             "idx": idx_java,
                             "atom": atom_symbol,
-                            "ppm": ppm
+                            "ppm": ppm,
+                            "min": min_ppm,
+                            "max": max_ppm
                         })
             except (ValueError, IndexError):
                 continue
@@ -285,11 +294,17 @@ class ResultDialog(QDialog):
         
         # 2. Table Result
         self.table = QTableWidget()
-        self.table.setColumnCount(3)
-        self.table.setHorizontalHeaderLabels(["Atom ID", "Type", "Shift (ppm)"])
+        self.table.setColumnCount(5)
+        self.table.setHorizontalHeaderLabels(["Atom ID", "Type", "Shift (ppm)", "Min (ppm)", "Max (ppm)"])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.table.setStyleSheet("""
+            QTableWidget::item:selected {
+                background-color: pink;
+                color: black;
+            }
+        """)
         
         # Populate Table
         self.table.setRowCount(len(self.data))
@@ -305,6 +320,14 @@ class ResultDialog(QDialog):
             ppm_item = QTableWidgetItem(f"{item['ppm']:.2f}")
             ppm_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             self.table.setItem(row, 2, ppm_item)
+
+            min_item = QTableWidgetItem(f"{item.get('min', 0.0):.2f}")
+            min_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            self.table.setItem(row, 3, min_item)
+
+            max_item = QTableWidgetItem(f"{item.get('max', 0.0):.2f}")
+            max_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            self.table.setItem(row, 4, max_item)
 
         layout.addWidget(self.table)
 
@@ -732,15 +755,17 @@ class ResultDialog(QDialog):
         try:
             with open(filename, mode='w', newline='', encoding='utf-8') as f:
                 writer = csv.writer(f)
-                # ヘッダー書き込み
-                writer.writerow(["Atom ID", "Type", "Shift (ppm)"])
+                # Header
+                writer.writerow(["Atom ID", "Type", "Shift (ppm)", "Min (ppm)", "Max (ppm)"])
                 
-                # データ書き込み (self.data は計算結果のリスト)
+                # Data
                 for item in self.data:
                     writer.writerow([
                         item["idx"], 
                         item["atom"], 
-                        f"{item['ppm']:.2f}"
+                        f"{item['ppm']:.2f}",
+                        f"{item.get('min', 0.0):.2f}",
+                        f"{item.get('max', 0.0):.2f}"
                     ])
             
             QMessageBox.information(self, "Success", f"Exported successfully to:\n{filename}")
