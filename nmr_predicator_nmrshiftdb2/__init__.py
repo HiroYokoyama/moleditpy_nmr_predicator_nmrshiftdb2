@@ -23,7 +23,7 @@ PTABLE = Chem.GetPeriodicTable()
 
 # --- Metadata (Plugin Development Manual Section 2) ---
 PLUGIN_NAME = "NMR Predictor (nmrshiftdb2)"
-PLUGIN_VERSION = "1.2.0"
+PLUGIN_VERSION = "2.0.0"
 PLUGIN_AUTHOR = "HiroYokoyama"
 PLUGIN_DESCRIPTION = "Predict 1H and 13C NMR shifts using nmrshiftdb2 (Java)."
 
@@ -657,7 +657,7 @@ class ResultDialog(QDialog):
         mw = self.context.get_main_window()
         if not hasattr(mw, 'selected_atoms_3d'): return
         
-        current_sel = set(mw.selected_atoms_3d)
+        current_sel = set(mw.edit_3d_manager.selected_atoms_3d)
         if current_sel == self._last_selected: return
         self._last_selected = current_sel
         
@@ -876,3 +876,11 @@ def initialize(context):
         lambda: run_prediction(context)
     )
     
+
+def run(mw):
+    """Automatic entry point for MoleditPy."""
+    if hasattr(mw, 'host'):
+        mw = mw.host
+    from moleditpy.plugins.plugin_interface import PluginContext
+    context = PluginContext(mw.plugin_manager, PLUGIN_NAME)
+    run_prediction(context)
