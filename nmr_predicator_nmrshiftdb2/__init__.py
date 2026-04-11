@@ -17,13 +17,14 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas,
 from matplotlib.figure import Figure
 import tempfile
 from rdkit.Chem import AllChem
+import logging
 
 # Periodic table for VdW radii
 PTABLE = Chem.GetPeriodicTable()
 
 # --- Metadata (Plugin Development Manual Section 2) ---
 PLUGIN_NAME = "NMR Predictor (nmrshiftdb2)"
-PLUGIN_VERSION = "2.0.0"
+PLUGIN_VERSION = "2.1.0"
 PLUGIN_AUTHOR = "HiroYokoyama"
 PLUGIN_DESCRIPTION = "Predict 1H and 13C NMR shifts using nmrshiftdb2 (Java)."
 
@@ -137,7 +138,7 @@ class PredictorWorker(QThread):
                     err_msg = (
                         f"No NMR peaks predicted.\n"
                         f"Structure might be missing from the database or formatting is incompatible.\n"
-                        f"Raw Output:\n{output[:1000]}\n"
+                        f"Raw Output:\n{process.stdout[:1000]}\n"
                         f"Stderr:\n{process.stderr[:500]}"
                     )
                     self.error_signal.emit(err_msg)
@@ -154,7 +155,8 @@ class PredictorWorker(QThread):
                 # Auto-delete temp file as requested by user
                 if temp_mol_path and temp_mol_path.exists():
                     try: os.remove(temp_mol_path)
-                    except: pass
+                    except Exception as _e:
+                        logging.warning("[__init__.py:157] silenced: %s", _e)
 
         except subprocess.CalledProcessError as e:
             err_out = e.stderr if e.stderr else e.stdout
@@ -531,12 +533,10 @@ class ResultDialog(QDialog):
             # 1. Update Table Selection (既存の処理: テーブルの行を選択状態にする)
             self.table.clearSelection()
             self.table.setSelectionMode(QTableWidget.SelectionMode.MultiSelection)
-            target_row = -1
             for i, item in enumerate(self.data):
                 # 同じPPMを持つ行をすべて選択
                 if abs(item["ppm"] - ppm) < 1e-4:
                     self.table.selectRow(i)
-                    if i == min_idx: target_row = i
             self.table.setSelectionMode(QTableWidget.SelectionMode.ExtendedSelection)
 
             # 2. Trigger Highlight (追加: ここで可視化メソッドを呼ぶ)
@@ -632,16 +632,18 @@ class ResultDialog(QDialog):
         ax = self.figure.axes[0]
         
         # Cleanup
-        if hasattr(self, "_hover_line"):
+        if getattr(self, "_hover_line", None) is not None:
             try: self._hover_line.remove()
-            except: pass
+            except Exception as _e:
+                logging.warning("[__init__.py:637] silenced: %s", _e)
             del self._hover_line
             
         if not is_hover:
             # Persistent highlight update
-            if hasattr(self, "_graph_line"):
+            if getattr(self, "_graph_line", None) is not None:
                 try: self._graph_line.remove()
-                except: pass
+                except Exception:
+                    pass  # line may already be removed from axes
             
             if ppm is not None:
                 self._graph_line = ax.axvline(ppm, color='red', linestyle='-', alpha=0.8, linewidth=2)
@@ -740,8 +742,8 @@ class ResultDialog(QDialog):
             self._highlight_actors.clear()
             self._label_actors.clear()
             plotter.render()
-        except:
-            pass
+        except Exception as _e:
+            logging.warning("[__init__.py:743] silenced: %s", _e)
 
     def export_csv(self):
         """Export table data to CSV."""
@@ -783,8 +785,8 @@ class ResultDialog(QDialog):
             mw = self.context.get_main_window()
             if hasattr(mw, "nmr_result_dialog") and mw.nmr_result_dialog is self:
                 mw.nmr_result_dialog = None
-        except:
-            pass
+        except Exception as _e:
+            logging.warning("[__init__.py:786] silenced: %s", _e)
             
         super().closeEvent(event)
 
@@ -822,8 +824,8 @@ def run_prediction(context):
         if hasattr(mw, "nmr_result_dialog") and mw.nmr_result_dialog:
             try:
                 mw.nmr_result_dialog.close()
-            except:
-                pass
+            except Exception as _e:
+                logging.warning("[__init__.py:825] silenced: %s", _e)
         
         # Show Result Dialog (Modeless)
         mw.nmr_result_dialog = ResultDialog(mw, result, context)
