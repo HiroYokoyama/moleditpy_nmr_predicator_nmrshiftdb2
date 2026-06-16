@@ -2,6 +2,8 @@
 
 A plugin for **Moleditpy** that predicts **1H** and **13C** NMR chemical shifts using the **nmrshiftdb2** machine learning models. It provides an interactive spectrum viewer and 3D atom highlighting.
 
+![](img/main.png)
+
 ## Features
 
 * **Prediction:** Predict 1H and 13C NMR shifts using the robust `nmrshiftdb2` Java library.
