@@ -16,7 +16,7 @@ A plugin for **Moleditpy** that predicts **1H** and **13C** NMR chemical shifts 
 
 ## Installation
 
-1.  Download the latest `plugin.zip` from the [Releases](../../releases) page.
+1.  Download the latest `nmr_predicator_nmrshiftdb2.zip` from the [Releases](../../releases) page.
 2.  Extract the zip file into the `plugins` directory of your Moleditpy installation.
     * Structure should look like: `.../plugins/nmr_predictor/__init__.py`
 3.  Ensure the `lib/` folder inside the plugin directory contains the required JAR files (`predictorh.jar`, `cdk-*.jar`, etc.).
