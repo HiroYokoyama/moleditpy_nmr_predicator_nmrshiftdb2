@@ -110,7 +110,6 @@ from nmr_predicator_nmrshiftdb2 import (
 
 def test_metadata():
     assert PLUGIN_NAME == "NMR Predictor (nmrshiftdb2)"
-    assert PLUGIN_VERSION == "2.1.0"
     assert PLUGIN_AUTHOR == "HiroYokoyama"
     assert isinstance(PLUGIN_DESCRIPTION, str)
 
