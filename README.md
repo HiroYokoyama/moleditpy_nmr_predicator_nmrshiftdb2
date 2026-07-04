@@ -1,4 +1,4 @@
-﻿# NMR Prediction Plugin for Moleditpy
+# NMR Prediction Plugin for Moleditpy
 
 [![CI](https://github.com/HiroYokoyama/moleditpy_nmr_predicator_nmrshiftdb2/actions/workflows/test.yml/badge.svg)](https://github.com/HiroYokoyama/moleditpy_nmr_predicator_nmrshiftdb2/actions/workflows/test.yml)
 [![Downloads](https://img.shields.io/github/downloads/HiroYokoyama/moleditpy_nmr_predicator_nmrshiftdb2/total)](https://github.com/HiroYokoyama/moleditpy_nmr_predicator_nmrshiftdb2/releases)
