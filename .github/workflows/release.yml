@@ -54,6 +54,7 @@ jobs:
       - name: Build release package
         run: |
           TAG="$VERSION"
+          cp README.md LICENSE nmr_predicator_nmrshiftdb2/
           zip -r "nmr_predicator_nmrshiftdb2_${TAG}.zip" nmr_predicator_nmrshiftdb2/ --exclude "*/__pycache__/*" "*/.git/*"
 
       - name: Create GitHub Release
