@@ -19,6 +19,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          lfs: true
 
       - name: Resolve version
         run: |
@@ -50,6 +52,20 @@ jobs:
             echo "ERROR: input version '$INPUT' does not match PLUGIN_VERSION '$FILE_VERSION' in nmr_predicator_nmrshiftdb2/__init__.py"
             exit 1
           fi
+
+      - name: Verify JARs are real binaries (not LFS stubs)
+        run: |
+          for jar in nmr_predicator_nmrshiftdb2/lib/predictorh.jar \
+                     nmr_predicator_nmrshiftdb2/lib/predictorc.jar \
+                     nmr_predicator_nmrshiftdb2/lib/cdk-2.11.jar; do
+            size=$(stat -c%s "$jar")
+            echo "$jar : $size bytes"
+            if [ "$size" -lt 1000 ]; then
+              echo "ERROR: $jar looks like a Git LFS pointer stub ($size bytes)."
+              echo "Ensure Git LFS is enabled and 'git lfs pull' has been run."
+              exit 1
+            fi
+          done
 
       - name: Build release package
         run: |

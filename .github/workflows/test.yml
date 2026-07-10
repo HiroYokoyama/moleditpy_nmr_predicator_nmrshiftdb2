@@ -16,6 +16,25 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        lfs: true
+
+    - name: Verify JARs are real binaries (not LFS stubs)
+      shell: pwsh
+      run: |
+        $jars = @(
+          "nmr_predicator_nmrshiftdb2\lib\predictorh.jar",
+          "nmr_predicator_nmrshiftdb2\lib\predictorc.jar",
+          "nmr_predicator_nmrshiftdb2\lib\cdk-2.11.jar"
+        )
+        foreach ($jar in $jars) {
+          $size = (Get-Item $jar).Length
+          Write-Host "$jar : $size bytes"
+          if ($size -lt 1000) {
+            Write-Error "ERROR: $jar looks like a Git LFS pointer stub ($size bytes). Run 'git lfs pull'."
+            exit 1
+          }
+        }
 
     - name: Set up Python 3.13
       uses: actions/setup-python@v5
