@@ -39,10 +39,16 @@ class _Qt:
         AlignRight = 2
         AlignVCenter = 4
 
+    class TextFormat:
+        RichText = 1
+
 
 class _QTimer:
-    def __init__(self, parent=None): pass
+    def __init__(self, parent=None):
+        self.timeout = MagicMock()
+
     def start(self, ms): pass
+    def stop(self): pass
 
 
 class _QDialog:
@@ -54,6 +60,9 @@ class _QDialog:
     def exec(self): return True
     def accept(self): pass
     def reject(self): pass
+    def setWindowModality(self, *args): pass
+    def close(self): pass
+    def closeEvent(self, event): pass
 
     def setLayout(self, layout):
         self.layout = layout
@@ -70,6 +79,95 @@ class _QMessageBox:
 class _QPushButton:
     def __init__(self, *args, **kwargs):
         self.clicked = MagicMock()
+
+    def setFixedWidth(self, w): pass
+
+
+class _QTableWidgetItem:
+    def __init__(self, text="", *args, **kwargs):
+        self._text = text
+
+    def setTextAlignment(self, *args, **kwargs): pass
+
+    def text(self):
+        return self._text
+
+
+class _QTableWidget:
+    class SelectionBehavior:
+        SelectRows = 1
+
+    class EditTrigger:
+        NoEditTriggers = 0
+
+    class SelectionMode:
+        SingleSelection = 0
+        MultiSelection = 1
+        ExtendedSelection = 3
+
+    def __init__(self, *args, **kwargs):
+        self._row_count = 0
+        self._items = {}
+        self._selected_rows = set()
+        self.cellClicked = MagicMock()
+
+    def setColumnCount(self, n): pass
+    def setHorizontalHeaderLabels(self, labels): pass
+    def horizontalHeader(self): return MagicMock()
+    def setSelectionBehavior(self, behavior): pass
+    def setEditTriggers(self, trigger): pass
+    def setStyleSheet(self, css): pass
+    def setRowCount(self, n): self._row_count = n
+    def rowCount(self): return self._row_count
+
+    def setItem(self, row, col, item):
+        self._items[(row, col)] = item
+
+    def item(self, row, col):
+        return self._items.get((row, col))
+
+    def clearSelection(self):
+        self._selected_rows.clear()
+
+    def selectRow(self, row):
+        self._selected_rows.add(row)
+
+    def setSelectionMode(self, mode): pass
+
+
+class _QLabel:
+    """Real stub (not MagicMock) — MagicMock(text) treats a str first-arg as
+    `spec`, which then rejects normal Qt methods like setStyleSheet."""
+    def __init__(self, text="", *args, **kwargs):
+        self._text = text
+        self.setStyleSheet = MagicMock()
+        self.setText = MagicMock(side_effect=self._set_text)
+
+    def _set_text(self, text):
+        self._text = text
+
+    def text(self):
+        return self._text
+
+
+class _QCheckBox:
+    """Real stub — avoids MagicMock("Auto Fit") treating the label as `spec`."""
+    def __init__(self, text="", *args, **kwargs):
+        self._text = text
+        self.toggled = MagicMock()
+        self.isChecked = MagicMock(return_value=False)
+
+
+class _QDoubleSpinBox:
+    def __init__(self, *args, **kwargs):
+        self._value = 0.0
+        self.valueChanged = MagicMock()
+
+    def setRange(self, *args, **kwargs): pass
+    def setDecimals(self, *args, **kwargs): pass
+    def setSingleStep(self, *args, **kwargs): pass
+    def setValue(self, v): self._value = v
+    def value(self): return self._value
 
 
 class _QComboBox:
@@ -126,11 +224,11 @@ def _install_stubs() -> None:
         QMessageBox=_QMessageBox,
         QPushButton=_QPushButton,
         QComboBox=_QComboBox,
-        QLabel=MagicMock,
-        QTableWidget=MagicMock,
-        QTableWidgetItem=MagicMock,
-        QCheckBox=MagicMock,
-        QDoubleSpinBox=MagicMock,
+        QLabel=_QLabel,
+        QTableWidget=_QTableWidget,
+        QTableWidgetItem=_QTableWidgetItem,
+        QCheckBox=_QCheckBox,
+        QDoubleSpinBox=_QDoubleSpinBox,
         QVBoxLayout=MagicMock,
         QHBoxLayout=MagicMock,
     )
@@ -163,10 +261,25 @@ def _install_stubs() -> None:
     matplotlib_figure = _auto_module("matplotlib.figure")
 
     class _Figure:
-        def __init__(self, *args, **kwargs): pass
-        def add_subplot(self, *args, **kwargs): return MagicMock()
-        def clear(self): pass
+        def __init__(self, *args, **kwargs):
+            self._axes = []
+
+        def add_subplot(self, *args, **kwargs):
+            ax = MagicMock()
+            # ax.stem(...) is unpacked as (markerline, stemlines, baseline)
+            # in plot_spectrum() — pre-seed a 3-tuple of mocks.
+            ax.stem.return_value = (MagicMock(), MagicMock(), MagicMock())
+            self._axes.append(ax)
+            return ax
+
+        def clear(self):
+            self._axes = []
+
         def subplots_adjust(self, *args, **kwargs): pass
+
+        @property
+        def axes(self):
+            return self._axes
 
     object.__setattr__(matplotlib_figure, "Figure", _Figure)
     sys.modules["matplotlib.figure"] = matplotlib_figure
