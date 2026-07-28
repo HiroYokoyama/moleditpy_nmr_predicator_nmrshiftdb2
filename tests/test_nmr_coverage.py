@@ -495,8 +495,9 @@ def test_run_prediction_success_shows_dialog():
     mock_worker_instance = MagicMock()
     with patch("nmr_predicator_nmrshiftdb2.ask_nucleus", return_value=("13C", True)), \
          patch("nmr_predicator_nmrshiftdb2.PredictorWorker", return_value=mock_worker_instance), \
-         patch("nmr_predicator_nmrshiftdb2.QProgressDialog"), \
+         patch("nmr_predicator_nmrshiftdb2.QProgressDialog") as mock_progress_cls, \
          patch("nmr_predicator_nmrshiftdb2.ResultDialog") as mock_dialog_cls:
+        mock_progress_cls.return_value.wasCanceled.return_value = False
         run_prediction(context)
 
         on_success = mock_worker_instance.finished_signal.connect.call_args[0][0]
@@ -504,7 +505,13 @@ def test_run_prediction_success_shows_dialog():
         on_success(result)
 
         mock_dialog_cls.assert_called_once()
+        # The worker reference is released by QThread.finished, not by
+        # on_success — dropping it earlier can destroy a running thread.
+        release = mock_worker_instance.finished.connect.call_args[0][0]
+        assert mw.nmr_worker is mock_worker_instance
+        release()
         assert mw.nmr_worker is None
+        mock_worker_instance.deleteLater.assert_called_once()
 
 
 def test_run_prediction_error_shows_message():
@@ -516,15 +523,15 @@ def test_run_prediction_error_shows_message():
     mock_worker_instance = MagicMock()
     with patch("nmr_predicator_nmrshiftdb2.ask_nucleus", return_value=("1H", True)), \
          patch("nmr_predicator_nmrshiftdb2.PredictorWorker", return_value=mock_worker_instance), \
-         patch("nmr_predicator_nmrshiftdb2.QProgressDialog"), \
+         patch("nmr_predicator_nmrshiftdb2.QProgressDialog") as mock_progress_cls, \
          patch("nmr_predicator_nmrshiftdb2.QMessageBox") as mock_msgbox:
+        mock_progress_cls.return_value.wasCanceled.return_value = False
         run_prediction(context)
 
         on_error = mock_worker_instance.error_signal.connect.call_args[0][0]
         on_error("kaboom")
 
         mock_msgbox.critical.assert_called_once()
-        assert mw.nmr_worker is None
 
 
 # ---------------------------------------------------------------------------
@@ -578,3 +585,89 @@ def test_run_uses_mw_directly_when_no_host(monkeypatch):
         ctx_arg = mock_run_pred.call_args[0][0]
         assert isinstance(ctx_arg, FakePluginContext)
         assert ctx_arg.plugin_manager is mw.plugin_manager
+
+
+# ---------------------------------------------------------------------------
+# Cancelling the progress dialog
+# ---------------------------------------------------------------------------
+
+
+def _run_with_progress(cancelled, extra_patch):
+    mw = MagicMock()
+    context = MagicMock()
+    context.get_main_window.return_value = mw
+    context.current_molecule = Chem.MolFromSmiles("CO")
+    worker = MagicMock()
+    with patch("nmr_predicator_nmrshiftdb2.ask_nucleus", return_value=("1H", True)), \
+         patch("nmr_predicator_nmrshiftdb2.PredictorWorker", return_value=worker), \
+         patch("nmr_predicator_nmrshiftdb2.QProgressDialog") as mock_progress_cls, \
+         patch(f"nmr_predicator_nmrshiftdb2.{extra_patch}") as patched:
+        mock_progress_cls.return_value.wasCanceled.return_value = cancelled
+        run_prediction(context)
+        yield worker, patched, mw
+
+
+def test_cancelled_prediction_does_not_open_the_result_dialog():
+    worker, dialog_cls, _mw = next(_run_with_progress(True, "ResultDialog"))
+    on_success = worker.finished_signal.connect.call_args[0][0]
+    on_success({"nucleus": "1H", "data": [], "mol_with_h": None})
+    dialog_cls.assert_not_called()
+
+
+def test_cancelled_prediction_does_not_show_the_error_box():
+    worker, msgbox, _mw = next(_run_with_progress(True, "QMessageBox"))
+    on_error = worker.error_signal.connect.call_args[0][0]
+    on_error("java exploded")
+    msgbox.critical.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Java timeout
+# ---------------------------------------------------------------------------
+
+
+def test_java_timeout_is_reported(monkeypatch, tmp_path):
+    import subprocess as _sp
+
+    mol = Chem.MolFromSmiles("CO")
+    worker = PredictorWorker(mol, "13C", tmp_path)
+
+    lib = tmp_path / "lib"
+    lib.mkdir()
+    (lib / "predictorc.jar").write_bytes(b"jar")
+
+    monkeypatch.setattr(nmrmod.shutil, "which", lambda _name: "/usr/bin/java")
+    monkeypatch.setattr(
+        nmrmod.subprocess,
+        "run",
+        lambda *a, **k: (_ for _ in ()).throw(_sp.TimeoutExpired("java", 1)),
+    )
+
+    errors = []
+    worker.error_signal = MagicMock()
+    worker.error_signal.emit = errors.append
+    worker.run()
+
+    assert errors and "timed out" in errors[0]
+
+
+def test_subprocess_run_passes_a_timeout(monkeypatch, tmp_path):
+    mol = Chem.MolFromSmiles("CO")
+    worker = PredictorWorker(mol, "13C", tmp_path)
+
+    lib = tmp_path / "lib"
+    lib.mkdir()
+    (lib / "predictorc.jar").write_bytes(b"jar")
+
+    captured = {}
+
+    def _fake_run(*a, **kw):
+        captured.update(kw)
+        raise RuntimeError("stop here")
+
+    monkeypatch.setattr(nmrmod.shutil, "which", lambda _name: "/usr/bin/java")
+    monkeypatch.setattr(nmrmod.subprocess, "run", _fake_run)
+    worker.error_signal = MagicMock()
+    worker.run()
+
+    assert captured.get("timeout") == nmrmod.JAVA_TIMEOUT_SEC

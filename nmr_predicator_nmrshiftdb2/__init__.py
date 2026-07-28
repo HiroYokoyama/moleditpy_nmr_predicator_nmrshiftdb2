@@ -24,10 +24,14 @@ PTABLE = Chem.GetPeriodicTable()
 
 # --- Metadata (Plugin Development Manual Section 2) ---
 PLUGIN_NAME = "NMR Predictor (nmrshiftdb2)"
-PLUGIN_VERSION = "2.2.2"
+PLUGIN_VERSION = "2.3.0"
 PLUGIN_AUTHOR = "HiroYokoyama"
 PLUGIN_DESCRIPTION = "Predict 1H and 13C NMR shifts using nmrshiftdb2 (Java)."
 PLUGIN_SUPPORTED_MOLEDITPY_VERSION = ">=3.0.0, <5.0.0"
+
+#: Upper bound for one java prediction run; a hung JVM would otherwise
+#: keep the worker thread (and the progress dialog) alive forever.
+JAVA_TIMEOUT_SEC = 300
 
 # --- 1. Background Worker (Java Execution) ---
 class PredictorWorker(QThread):
@@ -64,7 +68,7 @@ class PredictorWorker(QThread):
             try:
                 Chem.SanitizeMol(mol_calc)
             except Exception as e:
-                print(f"Warning: Sanitization failed: {e}")
+                logging.warning("NMR Predictor: sanitization failed: %s", e)
 
             # 3. Clear existing stereochemistry flags
             # (Removes contradictory flags that cause "Unable to determine" errors)
@@ -129,7 +133,8 @@ class PredictorWorker(QThread):
                     text=True,
                     check=True, # Raise CalledProcessError on failure
                     startupinfo=startupinfo,
-                    cwd=self.plugin_dir / "lib"
+                    cwd=self.plugin_dir / "lib",
+                    timeout=JAVA_TIMEOUT_SEC,
                 )
 
                 # Parse output
@@ -159,6 +164,11 @@ class PredictorWorker(QThread):
                     except Exception as _e:
                         logging.warning("[__init__.py:157] silenced: %s", _e)
 
+        except subprocess.TimeoutExpired:
+            self.error_signal.emit(
+                f"Prediction timed out after {JAVA_TIMEOUT_SEC} s.\n"
+                "The molecule may be too large for the nmrshiftdb2 predictor."
+            )
         except subprocess.CalledProcessError as e:
             err_out = e.stderr if e.stderr else e.stdout
             self.error_signal.emit(f"Java Execution Failed (Code {e.returncode}):\n{err_out}")
@@ -398,6 +408,11 @@ class ResultDialog(QDialog):
     def plot_spectrum(self):
         """Plot NMR stick spectrum with multiplicity (proportional intensity)."""
         self.figure.clear()
+        # figure.clear() destroyed both highlight artists; drop the stale
+        # references so _update_graph_highlight does not try to remove them
+        # from an axes they no longer belong to.
+        self._graph_line = None
+        self._hover_line = None
         ax = self.figure.add_subplot(111)
         
         if not self.data:
@@ -443,7 +458,18 @@ class ResultDialog(QDialog):
         ax.set_ylabel("Intensity")
         ax.set_title(f"{self.nucleus} NMR Predicted Spectrum")
         ax.grid(True, axis='x', linestyle=':', alpha=0.5)
-        
+
+        # Re-draw the selection marker: changing the range must not look
+        # like the selection was lost.
+        if getattr(self, "_persistent_ppm", None) is not None:
+            self._graph_line = ax.axvline(
+                self._persistent_ppm,
+                color='red',
+                linestyle='-',
+                alpha=0.8,
+                linewidth=2,
+            )
+
         self.canvas.draw()
 
     def on_hover(self, event):
@@ -565,12 +591,23 @@ class ResultDialog(QDialog):
         try:
             mw = self.context.get_main_window()
             plotter = mw.plotter
-            
+
             # Remove all old highlights
             self.clear_3d_visuals()
 
-            conf = mw.current_mol.GetConformer()
-            
+            mol = mw.current_mol
+            conf = mol.GetConformer()
+
+            # The prediction is a snapshot: if the user edited the structure
+            # since, an atom index can now be out of range. Say so instead of
+            # failing silently on GetAtomPosition.
+            n_atoms = mol.GetNumAtoms()
+            if any(item["idx"] >= n_atoms for item in matching_atoms):
+                self.status_label.setText(
+                    "Structure changed since prediction — re-run the prediction."
+                )
+                return
+
             # Visual settings
             color = "red" if persistent else "orange"
             opacity = 0.5 if persistent else 0.4
@@ -594,10 +631,14 @@ class ResultDialog(QDialog):
                     color=color,
                     opacity=opacity,
                     name=f"nmr_highlight_{atom_idx}",
-                    pickable=False
+                    pickable=False,
+                    # PyVista defaults this to `not _first_time and not camera_set`,
+                    # so on a shown viewer that the user only zoomed with the mouse
+                    # every highlight would refit the camera and throw the zoom away.
+                    reset_camera=False,
                 )
                 self._highlight_actors[atom_idx] = actor
-                
+
                 # 2. Add Label (Centered on atom)
                 label_name = f"nmr_label_{atom_idx}"
                 label_actor = plotter.add_point_labels(
@@ -608,7 +649,8 @@ class ResultDialog(QDialog):
                     point_size=0,
                     always_visible=True,
                     bold=True,
-                    name=label_name
+                    name=label_name,
+                    reset_camera=False,
                 )
                 self._label_actors[atom_idx] = label_actor
             
@@ -626,7 +668,7 @@ class ResultDialog(QDialog):
                 self._update_graph_highlight(target_ppm)
             
         except Exception as e:
-            print(f"Highlight failed: {e}")
+            logging.warning("NMR Predictor: highlight failed: %s", e)
 
     def _update_graph_highlight(self, ppm, is_hover=False):
         """Draw highlight on the graph."""
@@ -634,10 +676,11 @@ class ResultDialog(QDialog):
         
         # Cleanup
         if getattr(self, "_hover_line", None) is not None:
-            try: self._hover_line.remove()
+            try:
+                self._hover_line.remove()
             except Exception as _e:
-                logging.warning("[__init__.py:637] silenced: %s", _e)
-            del self._hover_line
+                logging.warning("NMR Predictor: hover line cleanup: %s", _e)
+            self._hover_line = None
             
         if not is_hover:
             # Persistent highlight update
@@ -658,9 +701,15 @@ class ResultDialog(QDialog):
     def _sync_from_3d(self):
         """Sync from 3D selection to table."""
         mw = self.context.get_main_window()
-        if not hasattr(mw, 'selected_atoms_3d'): return
-        
-        current_sel = set(mw.edit_3d_manager.selected_atoms_3d)
+        # selected_atoms_3d lives on Edit3DManager, never on the main window, so
+        # the old `hasattr(mw, 'selected_atoms_3d')` guard always bailed out and
+        # this sync never ran.
+        manager = getattr(mw, "edit_3d_manager", None)
+        selected = getattr(manager, "selected_atoms_3d", None)
+        if selected is None:
+            return
+
+        current_sel = set(selected)
         if current_sel == self._last_selected: return
         self._last_selected = current_sel
         
@@ -816,9 +865,21 @@ def run_prediction(context):
 
     # 3. Start Worker Thread
     # We need to keep a reference to the worker to prevent garbage collection
-    mw.nmr_worker = PredictorWorker(mol, nucleus, plugin_dir)
+    worker = PredictorWorker(mol, nucleus, plugin_dir)
+    mw.nmr_worker = worker
+
+    def _release():
+        # Only drop the reference once the thread has actually finished.
+        if getattr(mw, "nmr_worker", None) is worker:
+            mw.nmr_worker = None
+        worker.deleteLater()
+
+    worker.finished.connect(_release)
     
     def on_success(result):
+        if progress.wasCanceled():
+            progress.cancel()
+            return
         progress.cancel()
         
         # Singleton behavior: check if dialog already exists
@@ -833,18 +894,17 @@ def run_prediction(context):
         mw.nmr_result_dialog.show()
         mw.nmr_result_dialog.raise_()
         mw.nmr_result_dialog.activateWindow()
-        
-        # Cleanup worker reference
-        mw.nmr_worker = None
 
     def on_error(msg):
+        was_cancelled = progress.wasCanceled()
         progress.cancel()
+        if was_cancelled:
+            return
         QMessageBox.critical(mw, "Prediction Error", msg)
-        mw.nmr_worker = None
 
-    mw.nmr_worker.finished_signal.connect(on_success)
-    mw.nmr_worker.error_signal.connect(on_error)
-    mw.nmr_worker.start()
+    worker.finished_signal.connect(on_success)
+    worker.error_signal.connect(on_error)
+    worker.start()
 
 def ask_nucleus(parent):
     """Simple dialog to choose nucleus."""
