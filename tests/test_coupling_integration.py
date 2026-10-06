@@ -123,8 +123,29 @@ def test_multiplets_on_by_default_for_1h_only():
     assert _dialog("13C").multiplet_chk.isChecked() is False
 
 
+def test_broadening_is_on_by_default():
+    dlg = _dialog("1H")
+    assert dlg.broadening_chk.isChecked() is True
+    assert dlg.linewidth_spin.value() == 1.0
+    assert _dialog("13C").linewidth_spin.value() == 2.0
+    dlg.plot_spectrum()
+    ax = dlg.figure.axes[0]
+    ax.stem.assert_not_called()
+    x, y = ax.plot.call_args[0][:2]
+    assert len(x) > 100
+    assert max(y) == pytest.approx(1.5, abs=0.01)  # centre of the 1:2:1 triplet, 3 H
+
+
+def test_broadening_toggle_disables_the_width():
+    dlg = _dialog("1H")
+    dlg.broadening_chk.setChecked(False)
+    dlg._on_broadening_toggled(False)
+    assert dlg.linewidth_spin.isEnabled() is False
+
+
 def test_plot_splits_the_signal_when_multiplets_are_shown():
     dlg = _dialog("1H")
+    dlg.broadening_chk.setChecked(False)  # sticks, to count the lines
     dlg.plot_spectrum()
     shifts, heights = dlg.figure.axes[0].stem.call_args[0][:2]
     assert len(shifts) == 3  # triplet

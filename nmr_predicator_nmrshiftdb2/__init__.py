@@ -40,7 +40,7 @@ PTABLE = Chem.GetPeriodicTable()
 
 # --- Metadata (Plugin Development Manual Section 2) ---
 PLUGIN_NAME = "NMR Predictor (nmrshiftdb2)"
-PLUGIN_VERSION = "2.4.1"
+PLUGIN_VERSION = "2.5.0"
 PLUGIN_AUTHOR = "HiroYokoyama"
 PLUGIN_DESCRIPTION = "Predict 1H and 13C NMR shifts using nmrshiftdb2. Requires Java Runtime (JRE)."
 PLUGIN_SUPPORTED_MOLEDITPY_VERSION = ">=3.0.0, <5.0.0"
@@ -396,6 +396,23 @@ class ResultDialog(QDialog):
         mult_row.addStretch()
         range_card.addLayout(mult_row)
 
+        broad_row = QHBoxLayout()
+        self.broadening_chk = QCheckBox("Line broadening")
+        self.broadening_chk.setChecked(True)
+        self.broadening_chk.toggled.connect(self._on_broadening_toggled)
+        broad_row.addWidget(self.broadening_chk)
+        broad_row.addWidget(QLabel("Line width:"))
+        self.linewidth_spin = QDoubleSpinBox()
+        self.linewidth_spin.setRange(0.1, 50.0)
+        self.linewidth_spin.setDecimals(1)
+        self.linewidth_spin.setSingleStep(0.5)
+        self.linewidth_spin.setSuffix(" Hz")
+        self.linewidth_spin.setValue(coupling.DEFAULT_LINEWIDTH_HZ.get(self.nucleus, 1.0))
+        self.linewidth_spin.valueChanged.connect(self.plot_spectrum)
+        broad_row.addWidget(self.linewidth_spin)
+        broad_row.addStretch()
+        range_card.addLayout(broad_row)
+
         layout.addWidget(self.toolbar)
         layout.addLayout(range_card)
         layout.addWidget(self.canvas)
@@ -524,6 +541,10 @@ class ResultDialog(QDialog):
         self._graph_line = None
         self._hover_line = None
 
+    def _on_broadening_toggled(self, checked):
+        self.linewidth_spin.setEnabled(bool(checked))
+        self.plot_spectrum()
+
     def plot_spectrum(self):
         """Plot NMR stick spectrum with multiplicity (proportional intensity)."""
         self.figure.clear()
@@ -551,28 +572,37 @@ class ResultDialog(QDialog):
         shifts = [ppm for ppm, _height in sticks]
         intensities = [height for _ppm, height in sticks]
 
-        # Stem plot for sticks
-        markerline, stemlines, baseline = ax.stem(
-            shifts, intensities, linefmt="b-", markerfmt="None", basefmt="k-"
-        )
-        stemlines.set_linewidth(1.5)
-        baseline.set_alpha(0.3)
-
         # NMR Convention: X-axis descending
-        is_auto = self.auto_scale_chk.isChecked()
-
-        max_int = max(intensities) if intensities else 1.0
-        ax.set_ylim(0, max_int * 1.2)
-
-        if is_auto:
-            # Auto scale
-            ax.set_xlim(max(shifts) + 1.0, min(shifts) - 1.0)
-            # Update spin boxes to reflect auto values (optional, but might be confusing)
-            # self.min_ppm_spin.setValue(min(shifts) - 1.0)
-            # self.max_ppm_spin.setValue(max(shifts) + 1.0)
+        if self.auto_scale_chk.isChecked():
+            left, right = max(shifts) + 1.0, min(shifts) - 1.0
         else:
-            # Use manual range from spin boxes
-            ax.set_xlim(self.max_ppm_spin.value(), self.min_ppm_spin.value())
+            left, right = self.max_ppm_spin.value(), self.min_ppm_spin.value()
+
+        curve_x, curve_y = [], []
+        if self.broadening_chk.isChecked():
+            curve_x, curve_y = coupling.lorentzian_curve(
+                sticks,
+                self.linewidth_spin.value(),
+                observe_mhz(self.mhz_spin.value(), self.nucleus),
+                right,
+                left,
+            )
+        if curve_x:
+            # Lorentzian lines: easier to read than sticks once split.
+            ax.plot(curve_x, curve_y, color="b", linewidth=1.0)
+            ax.axhline(0, color="k", alpha=0.3, linewidth=1)
+            max_int = max(curve_y)
+        else:
+            # Stem plot for sticks
+            markerline, stemlines, baseline = ax.stem(
+                shifts, intensities, linefmt="b-", markerfmt="None", basefmt="k-"
+            )
+            stemlines.set_linewidth(1.5)
+            baseline.set_alpha(0.3)
+            max_int = max(intensities) if intensities else 1.0
+
+        ax.set_ylim(0, (max_int or 1.0) * 1.2)
+        ax.set_xlim(left, right)
 
         ax.set_xlabel("Chemical Shift (ppm)")
         ax.set_ylabel("Intensity")
@@ -906,7 +936,10 @@ class ResultDialog(QDialog):
             <li><b>PyVista</b>: 3D highlighting and visualization.<br>
             <a href="https://www.pyvista.org/">https://www.pyvista.org/</a></li>
         </ul>
-        <p>Author: {PLUGIN_AUTHOR}<br>Version: {PLUGIN_VERSION}</p>
+        <p>Mult. / J are rule-based estimates made by this plugin, not part of
+        the nmrshiftdb2 prediction.</p>
+        <p>Author: {PLUGIN_AUTHOR}<br>Version: {PLUGIN_VERSION}<br>
+        Shared coupling module: {coupling.COUPLING_MODULE_VERSION}</p>
         """
         msg = QMessageBox(self)
         msg.setWindowTitle("About NMR Predictor")

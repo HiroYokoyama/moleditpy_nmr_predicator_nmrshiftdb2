@@ -171,6 +171,8 @@ class _QDoubleSpinBox:
     def setDecimals(self, *args, **kwargs): pass
     def setSingleStep(self, *args, **kwargs): pass
     def setSuffix(self, *args, **kwargs): pass
+    def setEnabled(self, enabled): self._enabled = bool(enabled)
+    def isEnabled(self): return getattr(self, "_enabled", True)
     def setValue(self, v): self._value = v
     def value(self): return self._value
 
