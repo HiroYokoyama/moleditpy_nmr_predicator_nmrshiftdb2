@@ -33,6 +33,8 @@ import tempfile
 from rdkit.Chem import AllChem
 import logging
 
+from . import coupling
+
 # Periodic table for VdW radii
 PTABLE = Chem.GetPeriodicTable()
 
@@ -46,6 +48,31 @@ PLUGIN_SUPPORTED_MOLEDITPY_VERSION = ">=3.0.0, <5.0.0"
 #: Upper bound for one java prediction run; a hung JVM would otherwise
 #: keep the worker thread (and the progress dialog) alive forever.
 JAVA_TIMEOUT_SEC = 300
+
+#: 13C observe frequency relative to 1H (gyromagnetic ratio).
+C13_TO_H1 = 0.25145
+
+
+def table_headers(nucleus):
+    """Result table / CSV columns."""
+    coupling_cols = (
+        ["Mult.", "J (Hz)"] if nucleus == "1H" else ["Mult. (1H-coupled)", "1J(CH) (Hz)"]
+    )
+    return ["Atom ID", "Type", "Shift (ppm)", "Min (ppm)", "Max (ppm)"] + coupling_cols
+
+
+def observe_mhz(h1_mhz, nucleus):
+    """Observe frequency of ``nucleus`` on a magnet with the given 1H frequency."""
+    return h1_mhz if nucleus == "1H" else h1_mhz * C13_TO_H1
+
+
+def describe_multiplet(item):
+    """', dq (J = 17.0, 7.0 Hz)' for status lines; empty without coupling data."""
+    if not item.get("mult"):
+        return ""
+    if item.get("j_text"):
+        return f", {item['mult']} (J = {item['j_text']} Hz)"
+    return f", {item['mult']}"
 
 
 # --- 1. Background Worker (Java Execution) ---
@@ -102,7 +129,11 @@ class PredictorWorker(QThread):
             # and numbers heavy atoms first, so without explicit H here every
             # returned index lands past the end of mol_calc and a 1H run
             # produces no peaks at all.
-            mol_calc = Chem.AddHs(mol_calc)
+            # addCoords places them in 3D, which the coupling estimate below
+            # needs for its dihedral angles (the 2D layout replaces them for
+            # the backend anyway).
+            mol_calc = Chem.AddHs(mol_calc, addCoords=True)
+            mol_geometry = Chem.Mol(mol_calc)
 
             # 5. Clean 2D layout. The backend reads double-bond geometry off
             # these coordinates, which is why the E/Z flags must still be
@@ -175,6 +206,10 @@ class PredictorWorker(QThread):
                     )
                     self.error_signal.emit(err_msg)
                     return
+
+                # Multiplicity / J estimates (rule-based, see coupling.py).
+                # mol_geometry has the same atom order as mol_calc.
+                coupling.annotate_predictions(mol_geometry, predictions, self.nucleus)
 
                 # Emit success
                 self.finished_signal.emit(
@@ -341,16 +376,35 @@ class ResultDialog(QDialog):
         ctrl_row.addStretch()
         range_card.addLayout(ctrl_row)
 
+        mult_row = QHBoxLayout()
+        self.multiplet_chk = QCheckBox(
+            "Show multiplets" if self.nucleus == "1H" else "Show 1H-coupled multiplets"
+        )
+        # Default: split the 1H spectrum, keep 13C decoupled as usual.
+        self.multiplet_chk.setChecked(self.nucleus == "1H")
+        self.multiplet_chk.toggled.connect(self.plot_spectrum)
+        mult_row.addWidget(self.multiplet_chk)
+        mult_row.addWidget(QLabel("Spectrometer:"))
+        self.mhz_spin = QDoubleSpinBox()
+        self.mhz_spin.setRange(40.0, 1200.0)
+        self.mhz_spin.setDecimals(0)
+        self.mhz_spin.setSingleStep(100.0)
+        self.mhz_spin.setSuffix(" MHz (1H)")
+        self.mhz_spin.setValue(400.0)  # before connecting: no early redraw
+        self.mhz_spin.valueChanged.connect(self.plot_spectrum)
+        mult_row.addWidget(self.mhz_spin)
+        mult_row.addStretch()
+        range_card.addLayout(mult_row)
+
         layout.addWidget(self.toolbar)
         layout.addLayout(range_card)
         layout.addWidget(self.canvas)
 
         # 2. Table Result
         self.table = QTableWidget()
-        self.table.setColumnCount(5)
-        self.table.setHorizontalHeaderLabels(
-            ["Atom ID", "Type", "Shift (ppm)", "Min (ppm)", "Max (ppm)"]
-        )
+        headers = table_headers(self.nucleus)
+        self.table.setColumnCount(len(headers))
+        self.table.setHorizontalHeaderLabels(headers)
         self.table.horizontalHeader().setSectionResizeMode(
             QHeaderView.ResizeMode.Stretch
         )
@@ -392,7 +446,20 @@ class ResultDialog(QDialog):
             )
             self.table.setItem(row, 4, max_item)
 
+            for col, text in ((5, item.get("mult", "")), (6, item.get("j_text", ""))):
+                cell = QTableWidgetItem(text)
+                cell.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.table.setItem(row, col, cell)
+
         layout.addWidget(self.table)
+
+        coupling_note = QLabel(
+            "Mult. / J are rule-based estimates (typical values and a Karplus "
+            "curve), not part of the nmrshiftdb2 prediction."
+        )
+        coupling_note.setWordWrap(True)
+        coupling_note.setStyleSheet("color: gray; font-size: 10px;")
+        layout.addWidget(coupling_note)
 
         # 3. Credits and Status
         bottom_layout = QVBoxLayout()
@@ -474,14 +541,15 @@ class ResultDialog(QDialog):
             self.canvas.draw()
             return
 
-        # Group peaks by PPM to handle multiplicity
-        peak_map = {}  # ppm -> count
-        for item in self.data:
-            ppm = round(item["ppm"], 4)  # Group by rounded value
-            peak_map[ppm] = peak_map.get(ppm, 0) + 1
-
-        shifts = list(peak_map.keys())
-        intensities = [float(peak_map[s]) for s in shifts]
+        # One stick per nucleus; equal shifts stack up, and with multiplets on
+        # each signal is split by its estimated couplings.
+        sticks = coupling.spectrum_sticks(
+            self.data,
+            observe_mhz(self.mhz_spin.value(), self.nucleus),
+            self.multiplet_chk.isChecked(),
+        )
+        shifts = [ppm for ppm, _height in sticks]
+        intensities = [height for _ppm, height in sticks]
 
         # Stem plot for sticks
         markerline, stemlines, baseline = ax.stem(
@@ -572,6 +640,7 @@ class ResultDialog(QDialog):
                 item = self.data[min_idx]
                 self.status_label.setText(
                     f"Peak: {item['atom']}{item['idx']} at {item['ppm']:.2f} ppm"
+                    f"{describe_multiplet(item)}"
                 )
                 self.status_label.setStyleSheet("color: #e67e22; font-weight: bold;")
         else:
@@ -712,7 +781,7 @@ class ResultDialog(QDialog):
                 label_name = f"nmr_label_{atom_idx}"
                 label_actor = plotter.add_point_labels(
                     [point],
-                    [f"{symbol}{item['idx']}\n{ppm:.2f}"],
+                    [f"{symbol}{item['idx']}\n{ppm:.2f} {item.get('mult', '')}".rstrip()],
                     font_size=12 if not is_multi else 14,
                     text_color="white" if persistent else "yellow",
                     point_size=0,
@@ -727,10 +796,12 @@ class ResultDialog(QDialog):
                 if is_multi:
                     self.status_label.setText(
                         f"Selected Equiv Peak: {len(matching_atoms)} atoms at {target_ppm:.2f} ppm"
+                        f"{describe_multiplet(target_item)}"
                     )
                 else:
                     self.status_label.setText(
                         f"Selected {target_item['atom']}{target_item['idx']}: {target_ppm:.2f} ppm"
+                        f"{describe_multiplet(target_item)}"
                     )
 
             plotter.render()
@@ -888,9 +959,7 @@ class ResultDialog(QDialog):
             with open(filename, mode="w", newline="", encoding="utf-8") as f:
                 writer = csv.writer(f)
                 # Header
-                writer.writerow(
-                    ["Atom ID", "Type", "Shift (ppm)", "Min (ppm)", "Max (ppm)"]
-                )
+                writer.writerow(table_headers(self.nucleus))
 
                 # Data
                 for item in self.data:
@@ -901,6 +970,8 @@ class ResultDialog(QDialog):
                             f"{item['ppm']:.2f}",
                             f"{item.get('min', 0.0):.2f}",
                             f"{item.get('max', 0.0):.2f}",
+                            item.get("mult", ""),
+                            item.get("j_text", ""),
                         ]
                     )
 

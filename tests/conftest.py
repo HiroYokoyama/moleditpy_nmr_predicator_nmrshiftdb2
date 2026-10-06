@@ -141,6 +141,7 @@ class _QLabel:
     def __init__(self, text="", *args, **kwargs):
         self._text = text
         self.setStyleSheet = MagicMock()
+        self.setWordWrap = MagicMock()
         self.setText = MagicMock(side_effect=self._set_text)
 
     def _set_text(self, text):
@@ -157,6 +158,9 @@ class _QCheckBox:
         self.toggled = MagicMock()
         self.isChecked = MagicMock(return_value=False)
 
+    def setChecked(self, checked):
+        self.isChecked.return_value = bool(checked)
+
 
 class _QDoubleSpinBox:
     def __init__(self, *args, **kwargs):
@@ -166,6 +170,7 @@ class _QDoubleSpinBox:
     def setRange(self, *args, **kwargs): pass
     def setDecimals(self, *args, **kwargs): pass
     def setSingleStep(self, *args, **kwargs): pass
+    def setSuffix(self, *args, **kwargs): pass
     def setValue(self, v): self._value = v
     def value(self): return self._value
 
