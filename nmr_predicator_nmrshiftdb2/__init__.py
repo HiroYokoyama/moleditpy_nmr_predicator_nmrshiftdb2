@@ -40,7 +40,7 @@ PTABLE = Chem.GetPeriodicTable()
 
 # --- Metadata (Plugin Development Manual Section 2) ---
 PLUGIN_NAME = "NMR Predictor (nmrshiftdb2)"
-PLUGIN_VERSION = "2.5.0"
+PLUGIN_VERSION = "2.5.1"
 PLUGIN_AUTHOR = "HiroYokoyama"
 PLUGIN_DESCRIPTION = "Predict 1H and 13C NMR shifts using nmrshiftdb2. Requires Java Runtime (JRE)."
 PLUGIN_SUPPORTED_MOLEDITPY_VERSION = ">=3.0.0, <5.0.0"
