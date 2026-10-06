@@ -157,6 +157,19 @@ def test_plot_splits_the_signal_when_multiplets_are_shown():
     assert list(shifts) == [1.2] and list(heights) == [3.0]
 
 
+@pytest.mark.parametrize("nucleus, margin", [("1H", 1.0), ("13C", 10.0)])
+def test_auto_fit_leaves_room_beside_the_end_peaks(nucleus, margin):
+    dlg = _dialog(nucleus)
+    dlg.auto_scale_chk.setChecked(True)
+    dlg.broadening_chk.setChecked(False)
+    dlg.multiplet_chk.setChecked(False)  # fit to the signal centres
+    dlg.plot_spectrum()
+    shifts = [item["ppm"] for item in dlg.data]
+    left, right = dlg.figure.axes[0].set_xlim.call_args[0]
+    assert left == pytest.approx(max(shifts) + margin)
+    assert right == pytest.approx(min(shifts) - margin)
+
+
 def test_observe_frequency_for_13c():
     assert nmrmod.observe_mhz(400.0, "13C") == pytest.approx(100.58, abs=0.01)
 

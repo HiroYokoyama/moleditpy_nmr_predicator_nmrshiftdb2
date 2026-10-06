@@ -52,6 +52,10 @@ JAVA_TIMEOUT_SEC = 300
 #: 13C observe frequency relative to 1H (gyromagnetic ratio).
 C13_TO_H1 = 0.25145
 
+#: Room left beside the outermost peaks by "Auto Fit". 1 ppm is a lot of a
+#: 1H axis but nothing on a 13C one, where it put the end peaks on the frame.
+AUTO_FIT_MARGIN_PPM = {"1H": 1.0, "13C": 10.0}
+
 
 def table_headers(nucleus):
     """Result table / CSV columns."""
@@ -574,7 +578,8 @@ class ResultDialog(QDialog):
 
         # NMR Convention: X-axis descending
         if self.auto_scale_chk.isChecked():
-            left, right = max(shifts) + 1.0, min(shifts) - 1.0
+            margin = AUTO_FIT_MARGIN_PPM.get(self.nucleus, 1.0)
+            left, right = max(shifts) + margin, min(shifts) - margin
         else:
             left, right = self.max_ppm_spin.value(), self.min_ppm_spin.value()
 
