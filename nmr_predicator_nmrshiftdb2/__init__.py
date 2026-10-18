@@ -43,7 +43,7 @@ PLUGIN_NAME = "NMR Predictor (nmrshiftdb2)"
 PLUGIN_VERSION = "3.0.0"
 PLUGIN_AUTHOR = "HiroYokoyama"
 PLUGIN_DESCRIPTION = "Predict 1H and 13C NMR shifts using nmrshiftdb2. Requires Java Runtime (JRE)."
-PLUGIN_SUPPORTED_MOLEDITPY_VERSION = ">=3.0.0, <5.0.0"
+PLUGIN_SUPPORTED_MOLEDITPY_VERSION = ">=5.0.0, <6.0.0"
 
 #: Upper bound for one java prediction run; a hung JVM would otherwise
 #: keep the worker thread (and the progress dialog) alive forever.
