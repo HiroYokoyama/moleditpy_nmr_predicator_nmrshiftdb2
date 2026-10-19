@@ -1,0 +1,52 @@
+{
+  "scope": "Third-party binary provenance; not a standalone source-rebuild certification",
+  "predictors": [
+    {
+      "file": "predictorc.jar",
+      "sha256": "e3c3365fb3ffdccd79bb1c39c457c2486e6170f88eeaca5f36c09587950a5090",
+      "upstream_revision": 2333,
+      "upstream_binary": "https://svn.code.sf.net/p/nmrshiftdb2/code/!svn/rvr/2333/trunk/snapshots/predictorc.jar",
+      "java_class_comparison_revision": 2097,
+      "classes": {
+        "Test.class": true,
+        "TestSdf.class": true,
+        "org/openscience/nmrshiftdb/PredictionTool$Task.class": true,
+        "org/openscience/nmrshiftdb/PredictionTool$ValueBean.class": true,
+        "org/openscience/nmrshiftdb/PredictionTool.class": true,
+        "org/openscience/nmrshiftdb/util/AtomUtils.class": true,
+        "org/openscience/nmrshiftdb/util/ExtendedHOSECodeGenerator$TreeNode.class": true,
+        "org/openscience/nmrshiftdb/util/ExtendedHOSECodeGenerator$TreeNodeComparator.class": true,
+        "org/openscience/nmrshiftdb/util/ExtendedHOSECodeGenerator.class": true,
+        "org/openscience/nmrshiftdb/util/exception/NmrshiftdbException.class": true
+      },
+      "csv_sha256": "060db9edc25efcb6e1d7b9ae7dc233d765a101572e03c2dd40b80d23b60ea257"
+    },
+    {
+      "file": "predictorh.jar",
+      "sha256": "529e2c89279aaafcf63347460775693d0ff5120d17dae051e31b9e55f6d1e67d",
+      "upstream_revision": 2333,
+      "upstream_binary": "https://svn.code.sf.net/p/nmrshiftdb2/code/!svn/rvr/2333/trunk/snapshots/predictorh.jar",
+      "java_class_comparison_revision": 2097,
+      "classes": {
+        "Test.class": true,
+        "TestSdf.class": true,
+        "org/openscience/nmrshiftdb/PredictionTool$Task.class": true,
+        "org/openscience/nmrshiftdb/PredictionTool$ValueBean.class": true,
+        "org/openscience/nmrshiftdb/PredictionTool.class": true,
+        "org/openscience/nmrshiftdb/util/AtomUtils.class": true,
+        "org/openscience/nmrshiftdb/util/ExtendedHOSECodeGenerator$TreeNode.class": true,
+        "org/openscience/nmrshiftdb/util/ExtendedHOSECodeGenerator$TreeNodeComparator.class": true,
+        "org/openscience/nmrshiftdb/util/ExtendedHOSECodeGenerator.class": true,
+        "org/openscience/nmrshiftdb/util/exception/NmrshiftdbException.class": true
+      },
+      "csv_sha256": "35c9ef9c701005e9a91e2c27d77519fcaf53e8f124e71ae2822e9c24abecd21a"
+    }
+  ],
+  "cdk": {
+    "file": "cdk-2.11.jar",
+    "sha256": "cac548bdc046c30cb0026ec529d48bfb45af0569284575dfe2549296e74656ce",
+    "upstream_tag": "cdk-2.11",
+    "checksums": "https://github.com/cdk/cdk/releases/download/cdk-2.11/cdk-2.11-checksums-sha256.txt",
+    "source": "https://github.com/cdk/cdk/tree/cdk-2.11"
+  }
+}

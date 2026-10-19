@@ -68,3 +68,18 @@ This plugin bundles the following third-party libraries. Please refer to the `li
 
 ### Plugin License
 This plugin itself is released under the **GNU General Public License v3 (GPL v3)**.
+
+### Bundled versions, source and database terms
+
+The existing [third-party notice](nmr_predicator_nmrshiftdb2/NOTICE.txt) lists the
+Java components. The predictor JARs match upstream SVN **r2333**, and their Java
+classes match **r2097**; CDK matches the official **2.11** release checksum.
+See [source availability and verification scope](nmr_predicator_nmrshiftdb2/THIRD_PARTY_SOURCES.md)
+and [the binary provenance manifest](nmr_predicator_nmrshiftdb2/THIRD_PARTY_PROVENANCE.json).
+The standalone predictor's complete corresponding-source/build recipe remains
+unverified; matching upstream binaries is not a complete redistribution clearance.
+
+The embedded prediction tables have a separate
+[NMRShiftDB2 Database License](nmr_predicator_nmrshiftdb2/lib/nmrshiftdb2-database-license.txt).
+When publicly using prediction outputs, include the attribution and license link
+specified in its section 4.3; the Python plugin's GPL does not replace these terms.
