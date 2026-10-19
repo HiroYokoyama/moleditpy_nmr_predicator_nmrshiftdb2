@@ -4,7 +4,7 @@ import subprocess
 import re
 import csv
 from pathlib import Path
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QDialog,
     QVBoxLayout,
     QHBoxLayout,
@@ -20,7 +20,7 @@ from PyQt6.QtWidgets import (
     QProgressDialog,
     QFileDialog,
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
+from PySide6.QtCore import Qt, QThread, Signal, QTimer
 from rdkit import Chem
 import pyvista as pv
 import numpy as np
@@ -40,10 +40,10 @@ PTABLE = Chem.GetPeriodicTable()
 
 # --- Metadata (Plugin Development Manual Section 2) ---
 PLUGIN_NAME = "NMR Predictor (nmrshiftdb2)"
-PLUGIN_VERSION = "2.5.1"
+PLUGIN_VERSION = "3.0.0"
 PLUGIN_AUTHOR = "HiroYokoyama"
 PLUGIN_DESCRIPTION = "Predict 1H and 13C NMR shifts using nmrshiftdb2. Requires Java Runtime (JRE)."
-PLUGIN_SUPPORTED_MOLEDITPY_VERSION = ">=3.0.0, <5.0.0"
+PLUGIN_SUPPORTED_MOLEDITPY_VERSION = ">=5.0.0, <6.0.0"
 
 #: Upper bound for one java prediction run; a hung JVM would otherwise
 #: keep the worker thread (and the progress dialog) alive forever.
@@ -83,8 +83,8 @@ def describe_multiplet(item):
 class PredictorWorker(QThread):
     """Worker thread to prevent GUI freeze during calculation"""
 
-    finished_signal = pyqtSignal(dict)  # On success
-    error_signal = pyqtSignal(str)  # On error
+    finished_signal = Signal(dict)  # On success
+    error_signal = Signal(str)  # On error
 
     def __init__(self, mol, nucleus, plugin_dir):
         super().__init__()

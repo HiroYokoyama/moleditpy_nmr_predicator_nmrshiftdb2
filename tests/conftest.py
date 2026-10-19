@@ -6,7 +6,7 @@ sys.modules before any other plugin — including pytest-qt — runs its own
 configure hook.  The stub modules auto-return MagicMock for unknown attributes
 so pytest-qt's version probes never raise AttributeError.
 
-Both test files then pull _QDialog / _QComboBox from PyQt6.QtWidgets directly,
+Both test files then pull _QDialog / _QComboBox from PySide6.QtWidgets directly,
 so patch.object() calls always target the same class that the production module
 bound at import time.
 """
@@ -210,13 +210,13 @@ def _auto_module(name: str, **known_attrs) -> types.ModuleType:
 
 def _install_stubs() -> None:
     """Install all stub modules into sys.modules (idempotent)."""
-    if "PyQt6" in sys.modules:
+    if "PySide6" in sys.modules:
         return
 
     qt_core = _auto_module(
-        "PyQt6.QtCore",
+        "PySide6.QtCore",
         QThread=_QThread,
-        pyqtSignal=lambda *a, **kw: MagicMock(),
+        Signal=lambda *a, **kw: MagicMock(),
         Qt=_Qt,
         QTimer=_QTimer,
         # Version constants that pytest-qt probes during its configure hook
@@ -226,7 +226,7 @@ def _install_stubs() -> None:
     )
 
     qt_widgets = _auto_module(
-        "PyQt6.QtWidgets",
+        "PySide6.QtWidgets",
         QDialog=_QDialog,
         QMessageBox=_QMessageBox,
         QPushButton=_QPushButton,
@@ -240,29 +240,29 @@ def _install_stubs() -> None:
         QHBoxLayout=MagicMock,
     )
 
-    qt_gui = _auto_module("PyQt6.QtGui")
+    qt_gui = _auto_module("PySide6.QtGui")
 
-    class _PyQt6Package(types.ModuleType):
-        """PyQt6 stub that auto-creates sub-module stubs for any unknown attr."""
+    class _PySide6Package(types.ModuleType):
+        """PySide6 stub that auto-creates sub-module stubs for any unknown attr."""
 
         def __init__(self):
-            super().__init__("PyQt6")
+            super().__init__("PySide6")
             object.__setattr__(self, "QtCore", qt_core)
             object.__setattr__(self, "QtWidgets", qt_widgets)
             object.__setattr__(self, "QtGui", qt_gui)
 
         def __getattr__(self, name: str):
-            mod = _auto_module(f"PyQt6.{name}")
+            mod = _auto_module(f"PySide6.{name}")
             object.__setattr__(self, name, mod)
-            sys.modules[f"PyQt6.{name}"] = mod
+            sys.modules[f"PySide6.{name}"] = mod
             return mod
 
-    pyqt6 = _PyQt6Package()
+    pyside6 = _PySide6Package()
 
-    sys.modules["PyQt6"] = pyqt6
-    sys.modules["PyQt6.QtCore"] = qt_core
-    sys.modules["PyQt6.QtWidgets"] = qt_widgets
-    sys.modules["PyQt6.QtGui"] = qt_gui
+    sys.modules["PySide6"] = pyside6
+    sys.modules["PySide6.QtCore"] = qt_core
+    sys.modules["PySide6.QtWidgets"] = qt_widgets
+    sys.modules["PySide6.QtGui"] = qt_gui
     sys.modules["pyvista"] = MagicMock()
 
     matplotlib_figure = _auto_module("matplotlib.figure")

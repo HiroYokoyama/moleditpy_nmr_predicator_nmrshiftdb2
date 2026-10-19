@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 # conftest.py already installed stubs and added the package root to sys.path.
 # Import shared stub classes so our patch.object() calls target the same class
 # that the production module bound at import time.
-from PyQt6.QtWidgets import QDialog as _QDialog, QComboBox as _QComboBox
+from PySide6.QtWidgets import QDialog as _QDialog, QComboBox as _QComboBox
 
 from rdkit import Chem
 from nmr_predicator_nmrshiftdb2 import (
