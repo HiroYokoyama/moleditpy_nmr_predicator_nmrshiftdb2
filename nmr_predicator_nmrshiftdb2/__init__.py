@@ -1,3 +1,5 @@
+
+from ._qt_callbacks import connect_queued
 import os
 import shutil
 import subprocess
@@ -40,7 +42,7 @@ PTABLE = Chem.GetPeriodicTable()
 
 # --- Metadata (Plugin Development Manual Section 2) ---
 PLUGIN_NAME = "NMR Predictor (nmrshiftdb2)"
-PLUGIN_VERSION = "3.0.0"
+PLUGIN_VERSION = "3.0.1"
 PLUGIN_AUTHOR = "HiroYokoyama"
 PLUGIN_DESCRIPTION = "Predict 1H and 13C NMR shifts using nmrshiftdb2. Requires Java Runtime (JRE)."
 PLUGIN_SUPPORTED_MOLEDITPY_VERSION = ">=5.0.0, <6.0.0"
@@ -1075,7 +1077,7 @@ def run_prediction(context):
             mw.nmr_worker = None
         worker.deleteLater()
 
-    worker.finished.connect(_release)
+    connect_queued(worker.finished, _release, cleanup=(worker.finished,))
 
     def on_success(result):
         if progress.wasCanceled():
@@ -1103,8 +1105,8 @@ def run_prediction(context):
             return
         QMessageBox.critical(mw, "Prediction Error", msg)
 
-    worker.finished_signal.connect(on_success)
-    worker.error_signal.connect(on_error)
+    connect_queued(worker.finished_signal, on_success, mw, (dict,), cleanup=(worker.finished,))
+    connect_queued(worker.error_signal, on_error, mw, (str,), cleanup=(worker.finished,))
     worker.start()
 
 
