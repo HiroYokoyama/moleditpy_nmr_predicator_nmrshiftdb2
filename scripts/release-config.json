@@ -1,0 +1,17 @@
+{
+  "source": "nmr_predicator_nmrshiftdb2/__init__.py",
+  "title": "NMR Predicator (NMRShiftDB2)",
+  "package": "nmr_predicator_nmrshiftdb2",
+  "archive": "nmr_predicator_nmrshiftdb2_{version}.zip",
+  "assets": [
+    "nmr_predicator_nmrshiftdb2_{version}.zip"
+  ],
+  "include": [
+    "README.md",
+    "LICENSE"
+  ],
+  "exclude": [
+    "*/__pycache__/*",
+    "*/.git/*"
+  ]
+}
