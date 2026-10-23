@@ -480,6 +480,7 @@ def test_run_prediction_zero_atom_molecule_warns():
 def test_run_prediction_cancelled_nucleus_dialog_no_worker():
     context = MagicMock()
     context.current_molecule = Chem.MolFromSmiles("C")
+    context.get_main_window.return_value.nmr_worker = None
     with patch("nmr_predicator_nmrshiftdb2.ask_nucleus", return_value=(None, False)), \
          patch("nmr_predicator_nmrshiftdb2.PredictorWorker") as mock_worker_cls:
         run_prediction(context)
@@ -488,6 +489,7 @@ def test_run_prediction_cancelled_nucleus_dialog_no_worker():
 
 def test_run_prediction_success_shows_dialog():
     mw = MagicMock()
+    mw.nmr_worker = None
     context = MagicMock()
     context.get_main_window.return_value = mw
     context.current_molecule = Chem.MolFromSmiles("CO")
@@ -516,6 +518,7 @@ def test_run_prediction_success_shows_dialog():
 
 def test_run_prediction_error_shows_message():
     mw = MagicMock()
+    mw.nmr_worker = None
     context = MagicMock()
     context.get_main_window.return_value = mw
     context.current_molecule = Chem.MolFromSmiles("CO")
@@ -594,6 +597,7 @@ def test_run_uses_mw_directly_when_no_host(monkeypatch):
 
 def _run_with_progress(cancelled, extra_patch):
     mw = MagicMock()
+    mw.nmr_worker = None
     context = MagicMock()
     context.get_main_window.return_value = mw
     context.current_molecule = Chem.MolFromSmiles("CO")
