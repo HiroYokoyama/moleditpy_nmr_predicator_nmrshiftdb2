@@ -60,6 +60,10 @@ class _QDialog:
     def exec(self): return True
     def accept(self): pass
     def reject(self): pass
+
+    def done(self, result):
+        self.result = result
+
     def setWindowModality(self, *args): pass
     def close(self): pass
     def closeEvent(self, event): pass

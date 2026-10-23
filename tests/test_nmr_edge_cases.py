@@ -219,6 +219,7 @@ def _dialog_with_plotter(monkeypatch):
     ]
     dialog = object.__new__(nmrmod.ResultDialog)
     dialog.context = context
+    dialog._source_mol = mw.current_mol
     dialog.data = data
     dialog._highlight_actors = {}
     dialog._label_actors = {}

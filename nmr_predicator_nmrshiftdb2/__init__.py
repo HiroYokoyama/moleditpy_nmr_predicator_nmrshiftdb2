@@ -4,6 +4,7 @@ import os
 import shutil
 import subprocess
 import re
+import math
 import csv
 from pathlib import Path
 from PySide6.QtWidgets import (
@@ -42,7 +43,7 @@ PTABLE = Chem.GetPeriodicTable()
 
 # --- Metadata (Plugin Development Manual Section 2) ---
 PLUGIN_NAME = "NMR Predictor (nmrshiftdb2)"
-PLUGIN_VERSION = "3.0.1"
+PLUGIN_VERSION = "3.0.2"
 PLUGIN_AUTHOR = "HiroYokoyama"
 PLUGIN_DESCRIPTION = "Predict 1H and 13C NMR shifts using nmrshiftdb2. Requires Java Runtime (JRE)."
 PLUGIN_SUPPORTED_MOLEDITPY_VERSION = ">=5.0.0, <6.0.0"
@@ -295,12 +296,17 @@ class PredictorWorker(QThread):
                 ppm = float(mean_ppm_str)
                 min_ppm = float(min_ppm_str)
                 max_ppm = float(max_ppm_str)
+                if not all(math.isfinite(value) for value in (min_ppm, ppm, max_ppm)):
+                    continue
 
                 if 0 <= idx_java < num_atoms:
                     atom = mol.GetAtomWithIdx(idx_java)
                     atom_symbol = atom.GetSymbol()
 
-                    if atom_symbol == target_symbol:
+                    if atom_symbol == target_symbol and atom.GetIsotope() in (
+                        0,
+                        1 if self.nucleus == "1H" else 13,
+                    ):
                         # A hydrogen's index can exceed the host molecule's
                         # atom count (it may keep its H implicit), so remember
                         # the heavy atom to fall back to when highlighting.
@@ -330,6 +336,8 @@ class ResultDialog(QDialog):
         self.setWindowModality(Qt.WindowModality.NonModal)
 
         self.context = context
+        self._source_mol = getattr(context.get_main_window(), "current_mol", None)
+        self._highlight_plotter = None
         self.data = result_data["data"]
         self.mol_with_h = result_data["mol_with_h"]
         self.nucleus = result_data["nucleus"]
@@ -631,7 +639,7 @@ class ResultDialog(QDialog):
 
     def on_hover(self, event):
         """マウス移動時の処理 - 選択状態を優先するよう修正"""
-        if event.inaxes is None:
+        if event.inaxes is None or event.xdata is None:
             if self._hover_idx != -1:
                 self._hover_idx = -1
                 self._update_graph_highlight(None, is_hover=True)
@@ -703,7 +711,7 @@ class ResultDialog(QDialog):
 
     def on_graph_click(self, event):
         """Handle click on plot - Sync to Table and 3D Highlight."""
-        if event.inaxes is None:
+        if event.inaxes is None or event.xdata is None:
             return
 
         # Find nearest peak
@@ -746,6 +754,14 @@ class ResultDialog(QDialog):
 
     def highlight_atom(self, row_idx, persistent=True):
         """Highlight atoms in 3D with VDW sphere and label. Handles multi-atom peaks."""
+        if not 0 <= row_idx < len(self.data):
+            return
+        if not self._source_is_current():
+            self.clear_3d_visuals()
+            self.status_label.setText(
+                "Structure changed since prediction - re-run the prediction."
+            )
+            return
         target_item = self.data[row_idx]
         target_ppm = target_item["ppm"]
 
@@ -771,13 +787,14 @@ class ResultDialog(QDialog):
             # host molecule may keep its H implicit, so an H index can sit past
             # its end. Fall back to the heavy atom the H hangs off, and only
             # give up when even that is out of range (a real structure edit).
+            self._highlight_plotter = plotter
             n_atoms = mol.GetNumAtoms()
             draw_targets = []
             for item in matching_atoms:
                 idx = item["idx"]
-                if idx >= n_atoms:
+                if not 0 <= idx < n_atoms:
                     idx = item.get("parent_idx", idx)
-                if idx >= n_atoms:
+                if not 0 <= idx < n_atoms:
                     self.status_label.setText(
                         "Structure changed since prediction — re-run the prediction."
                     )
@@ -795,6 +812,8 @@ class ResultDialog(QDialog):
 
                 pos = conf.GetAtomPosition(atom_idx)
                 point = (pos.x, pos.y, pos.z)
+                if not all(math.isfinite(value) for value in point):
+                    raise ValueError("Highlight coordinates must be finite.")
 
                 # 1. Sphere Highlight
                 # Use RDKit VdW radius scaled by 0.3 as in moledit core/reference
@@ -853,6 +872,8 @@ class ResultDialog(QDialog):
 
     def _update_graph_highlight(self, ppm, is_hover=False):
         """Draw highlight on the graph."""
+        if not self.figure.axes:
+            return
         ax = self.figure.axes[0]
 
         # Cleanup
@@ -886,6 +907,14 @@ class ResultDialog(QDialog):
 
     def _sync_from_3d(self):
         """Sync from 3D selection to table."""
+        if not self._source_is_current():
+            self.clear_3d_visuals()
+            self.table.clearSelection()
+            self.sel_timer.stop()
+            self.status_label.setText(
+                "Structure changed since prediction - re-run the prediction."
+            )
+            return
         mw = self.context.get_main_window()
         # selected_atoms_3d lives on Edit3DManager, never on the main window, so
         # the old `hasattr(mw, 'selected_atoms_3d')` guard always bailed out and
@@ -944,7 +973,8 @@ class ResultDialog(QDialog):
             <a href="https://www.pyvista.org/">https://www.pyvista.org/</a></li>
         </ul>
         <p>Mult. / J are rule-based estimates made by this plugin, not part of
-        the nmrshiftdb2 prediction.</p>
+        the nmrshiftdb2 prediction. Only 1H coupling is modeled; isotope
+        couplings are omitted.</p>
         <p>Author: {PLUGIN_AUTHOR}<br>Version: {PLUGIN_VERSION}<br>
         Shared coupling module: {coupling.COUPLING_MODULE_VERSION}</p>
         """
@@ -964,27 +994,32 @@ class ResultDialog(QDialog):
         self.status_label.setText("Selection cleared.")
 
     def clear_3d_visuals(self):
-        """Remove all NMR related actors from plotter."""
+        """Remove highlights from the plotter that owns them."""
+        highlights = getattr(self, "_highlight_actors", {})
+        labels = getattr(self, "_label_actors", {})
+        names = [f"nmr_highlight_{i}" for i in highlights]
+        names += [f"nmr_label_{i}" for i in labels]
+        highlights.clear()
+        labels.clear()
+        owner, self._highlight_plotter = getattr(self, "_highlight_plotter", None), None
+        if not names:
+            return
         try:
-            mw = self.context.get_main_window()
-            plotter = mw.plotter
-
-            # Remove spheres
-            for atom_idx in list(self._highlight_actors.keys()):
-                plotter.remove_actor(f"nmr_highlight_{atom_idx}")
-
-            # Remove labels
-            for atom_idx in list(self._label_actors.keys()):
-                plotter.remove_actor(f"nmr_label_{atom_idx}")
-
-            # Legacy cleanup
-            plotter.remove_actor("nmr_highlight")
-
-            self._highlight_actors.clear()
-            self._label_actors.clear()
+            plotter = (
+                owner if owner is not None else self.context.get_main_window().plotter
+            )
+            for name in names + ["nmr_highlight"]:
+                try:
+                    plotter.remove_actor(name)
+                except (RuntimeError, AttributeError, KeyError, ValueError):
+                    logging.getLogger(__name__).exception(
+                        "NMR Predictor: could not remove highlight %s", name
+                    )
             plotter.render()
-        except Exception as _e:
-            logging.warning("[__init__.py:743] silenced: %s", _e)
+        except (RuntimeError, AttributeError, KeyError, ValueError):
+            logging.getLogger(__name__).exception(
+                "NMR Predictor: could not redraw after highlight cleanup"
+            )
 
     def export_csv(self):
         """Export table data to CSV."""
@@ -1024,6 +1059,19 @@ class ResultDialog(QDialog):
                 self, "Export Error", f"Failed to save file:\n{str(e)}"
             )
 
+    def _source_is_current(self):
+        try:
+            return getattr(
+                self.context.get_main_window(), "current_mol", None
+            ) is getattr(self, "_source_mol", None)
+        except (AttributeError, RuntimeError):
+            return False
+
+    def done(self, result):
+        self.sel_timer.stop()
+        self.clear_3d_visuals()
+        super().done(result)
+
     def closeEvent(self, event):
         """Cleanup on close."""
         self.clear_3d_visuals()
@@ -1050,6 +1098,13 @@ def run_prediction(context):
 
     if not mol or mol.GetNumAtoms() == 0:
         QMessageBox.warning(mw, "Warning", "Please draw or load a molecule first.")
+        return
+
+    current_worker = getattr(mw, "nmr_worker", None)
+    if current_worker is not None and current_worker.isRunning():
+        QMessageBox.information(
+            mw, PLUGIN_NAME, "An NMR prediction is already running."
+        )
         return
 
     # 1. Select Nucleus
@@ -1080,7 +1135,7 @@ def run_prediction(context):
     connect_queued(worker.finished, _release, cleanup=(worker.finished,))
 
     def on_success(result):
-        if progress.wasCanceled():
+        if progress.wasCanceled() or context.current_molecule is not mol:
             progress.cancel()
             return
         progress.cancel()
