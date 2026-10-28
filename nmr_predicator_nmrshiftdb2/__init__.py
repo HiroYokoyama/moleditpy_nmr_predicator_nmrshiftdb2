@@ -27,11 +27,6 @@ from PySide6.QtCore import Qt, QThread, Signal, QTimer
 from rdkit import Chem
 import pyvista as pv
 import numpy as np
-from matplotlib.backends.backend_qtagg import (
-    FigureCanvasQTAgg as FigureCanvas,
-    NavigationToolbar2QT,
-)
-from matplotlib.figure import Figure
 import tempfile
 from rdkit.Chem import AllChem
 import logging
@@ -43,7 +38,7 @@ PTABLE = Chem.GetPeriodicTable()
 
 # --- Metadata (Plugin Development Manual Section 2) ---
 PLUGIN_NAME = "NMR Predictor (nmrshiftdb2)"
-PLUGIN_VERSION = "3.0.2"
+PLUGIN_VERSION = "3.0.3"
 PLUGIN_AUTHOR = "HiroYokoyama"
 PLUGIN_DESCRIPTION = "Predict 1H and 13C NMR shifts using nmrshiftdb2. Requires Java Runtime (JRE)."
 PLUGIN_SUPPORTED_MOLEDITPY_VERSION = ">=5.0.0, <6.0.0"
@@ -349,7 +344,14 @@ class ResultDialog(QDialog):
         layout = QVBoxLayout()
         self.setLayout(layout)
 
-        # 1. NMR Graph (Matplotlib)
+        # 1. NMR Graph (Matplotlib). Imported here rather than at module level:
+        # matplotlib costs ~0.6 s, which every MoleditPy start would otherwise pay.
+        from matplotlib.backends.backend_qtagg import (
+            FigureCanvasQTAgg as FigureCanvas,
+            NavigationToolbar2QT,
+        )
+        from matplotlib.figure import Figure
+
         self.figure = Figure(figsize=(5, 3.5))
         self.figure.subplots_adjust(left=0.1, right=0.95, top=0.9, bottom=0.15)
         self.canvas = FigureCanvas(self.figure)
