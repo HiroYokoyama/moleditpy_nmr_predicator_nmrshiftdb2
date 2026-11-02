@@ -162,6 +162,18 @@ def test_real_index_predicts_without_any_external_process(monkeypatch):
     assert all(-50 < row["ppm"] < 300 for row in result["data"])
 
 
+@pytest.mark.parametrize("nucleus, expected", [("1H", 10), ("13C", 6)])
+def test_readme_crotonate_has_complete_atom_assignment(nucleus, expected):
+    result = db.predict(Chem.MolFromSmiles("CCOC(=O)/C=C/C"), nucleus)
+    assert len(result["data"]) == expected
+    assert result["unsupported"] == []
+    for row in result["data"]:
+        atom = result["mol_with_h"].GetAtomWithIdx(row["idx"])
+        assert atom.GetSymbol() == ("H" if nucleus == "1H" else "C")
+        assert row["min"] <= row["ppm"] <= row["max"]
+        assert row["method"] == "exact_stereostructure"
+
+
 def test_worker_emits_native_result_and_couplings(monkeypatch, tmp_path):
     path = make_index(tmp_path)
     (tmp_path / "data").mkdir()

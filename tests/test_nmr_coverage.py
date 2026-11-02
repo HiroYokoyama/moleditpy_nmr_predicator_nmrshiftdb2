@@ -1,6 +1,5 @@
 """
 Additional coverage tests for nmr_predicator_nmrshiftdb2:
-  - PredictorWorker.run() success / no-prediction / CalledProcessError / generic-exception paths
   - ResultDialog construction and interaction (hover, click, highlight, sync, export, close)
   - run_prediction() orchestration (no molecule, cancelled nucleus dialog, success, error)
   - run() entry point (with and without a .host wrapper)
@@ -531,10 +530,5 @@ def test_cancelled_prediction_does_not_open_the_result_dialog():
 def test_cancelled_prediction_does_not_show_the_error_box():
     worker, msgbox, _mw = next(_run_with_progress(True, "QMessageBox"))
     on_error = worker.error_signal.connect.call_args[0][0]
-    on_error("java exploded")
+    on_error("reference prediction failed")
     msgbox.critical.assert_not_called()
-
-
-# ---------------------------------------------------------------------------
-# Java timeout
-# ---------------------------------------------------------------------------

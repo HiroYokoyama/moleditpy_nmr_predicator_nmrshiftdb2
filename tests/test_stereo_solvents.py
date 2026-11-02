@@ -4,6 +4,7 @@ import csv
 import gzip
 import json
 from unittest.mock import MagicMock, patch
+from types import SimpleNamespace
 
 import pytest
 from rdkit import Chem
@@ -124,9 +125,11 @@ def test_csv_identifies_range_support_match_and_solvent(tmp_path):
                                          references=1, radius=0, method="exact_stereostructure")], nucleus="13C")
     dialog.solvent = "DMSO-d6"
     path = tmp_path / "prediction.csv"
-    with patch.object(plugin.QFileDialog, "getSaveFileName", return_value=(str(path), "")), \
-         patch.object(plugin.QMessageBox, "information", create=True):
+    messages = SimpleNamespace(information=MagicMock(), critical=MagicMock())
+    with patch.object(plugin, "QFileDialog", SimpleNamespace(getSaveFileName=lambda *args: (str(path), ""))), \
+         patch.object(plugin, "QMessageBox", messages):
         dialog.export_csv()
+    messages.critical.assert_not_called()
     with path.open(encoding="utf-8") as handle:
         rows = list(csv.reader(handle))
     assert rows[0][3:7] == ["Ref. min (ppm)", "Ref. max (ppm)", "Ref. molecules", "Match (bonds)"]

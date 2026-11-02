@@ -1,64 +1,10 @@
-"""
-Edge-case tests for nmr_predicator_nmrshiftdb2:
-  - _parse_output corner cases
-  - _build_classpath real logic
-  - PredictorWorker.run() error paths (no Java, JAR missing)
+"""GUI highlighting and selection edge-case regressions.
 
-Qt / pyvista / matplotlib stubs are installed by conftest.py before this file
-is imported.
+Qt, visualization and plot stubs are provided by conftest.py.
 """
 from unittest.mock import MagicMock
-
-
 from rdkit import Chem
 from rdkit.Chem import AllChem
-
-
-# ---------------------------------------------------------------------------
-# _parse_output edge cases
-# ---------------------------------------------------------------------------
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# ---------------------------------------------------------------------------
-# _build_classpath
-# ---------------------------------------------------------------------------
-
-
-
-
-
-
-
-
-
-
-
-# ---------------------------------------------------------------------------
-# PredictorWorker.run() error paths
-# ---------------------------------------------------------------------------
-
-
-
-
-
-# ---------------------------------------------------------------------------
-# 3D highlight must not disturb the user's camera
-# ---------------------------------------------------------------------------
 
 
 def _dialog_with_plotter(monkeypatch):
