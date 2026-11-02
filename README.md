@@ -173,7 +173,7 @@ python -m pip install pytest rdkit
 python -m pytest tests/ -q
 git lfs pull --include="data-source/nmrshiftdb2withsignals.sd"
 python scripts/build_reference.py
-python scripts/release_common.py package --version 4.0.0
+python scripts/release_common.py package --version 4.0.1
 ```
 
 The original SDF snapshot is in `data-source/` through Git LFS; it is excluded
