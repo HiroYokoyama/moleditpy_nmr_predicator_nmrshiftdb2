@@ -104,8 +104,8 @@ def _dialog(nucleus="1H"):
 
 def test_table_has_coupling_columns():
     dlg = _dialog("1H")
-    assert dlg.table.item(0, 5).text() == "t"
-    assert dlg.table.item(0, 6).text() == "7.0"
+    assert dlg.table.item(0, 7).text() == "t"
+    assert dlg.table.item(0, 8).text() == "7.0"
 
 
 def test_headers():

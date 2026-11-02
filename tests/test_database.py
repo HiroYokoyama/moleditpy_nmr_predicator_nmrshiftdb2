@@ -29,7 +29,7 @@ def make_index(tmp_path, smiles="CCO", nucleus="1H", radius=2, count=3):
             entries[db.index_key(nucleus, radius, key)] = [1.2, 1.0, 1.4, count]
     path = tmp_path / "reference.json.gz"
     with gzip.open(path, "wt", encoding="utf-8") as handle:
-        json.dump(dict(encoder=db.ENCODER, solvent=db.SOLVENT, entries=entries), handle)
+        json.dump(dict(encoder=db.ENCODER, solvents=[db.SOLVENT], entries=entries), handle)
     return path
 
 
@@ -75,7 +75,7 @@ def test_sparse_local_reference_is_not_a_prediction(tmp_path):
 def test_exact_connectivity_can_use_one_independent_measured_structure(tmp_path):
     path = make_index(tmp_path, radius=0, count=1)
     result = db.predict(Chem.MolFromSmiles("CCO"), "1H", path)
-    assert all(row["method"] == "exact_connectivity" for row in result["data"])
+    assert all(row["method"] == "exact_stereostructure" for row in result["data"])
 
 
 def test_missing_database_is_actionable(tmp_path):
@@ -140,7 +140,7 @@ def test_indexed_conditions_keep_calculated_and_measured_spectra_separate():
 
 def test_duplicate_spectra_cannot_inflate_independent_support():
     keys = {r: str(r) for r in (0, *db.RADII)}
-    index = builder.aggregate([("same-molecule", "13C", keys, 20.0)] * 20)
+    index = builder.aggregate([("same-molecule", "CDCl3", "13C", keys, 20.0, 18.0, 22.0)] * 20)
     assert db.index_key("13C", 2, "2") not in index
     assert index[db.index_key("13C", 0, "0")][3] == 1
 
@@ -152,7 +152,7 @@ def test_bundled_index_matches_provenance_and_has_no_java():
     assert metadata["source_sha256"] == builder.SOURCE_SHA256
     assert (data / "DATABASE-LICENSE.txt").is_file()
     assert not list((ROOT / "nmr_predicator_nmrshiftdb2").rglob("*.jar"))
-    assert all(metadata["validation"][n]["predicted"] > 0 for n in ["1H", "13C"])
+    assert all(metadata["validation"]["CDCl3"][n]["predicted"] > 0 for n in ["1H", "13C"])
 
 
 def test_real_index_predicts_without_any_external_process(monkeypatch):

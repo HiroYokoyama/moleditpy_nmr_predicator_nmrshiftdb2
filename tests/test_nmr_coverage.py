@@ -391,7 +391,7 @@ def test_run_prediction_cancelled_nucleus_dialog_no_worker():
     context = MagicMock()
     context.current_molecule = Chem.MolFromSmiles("C")
     context.get_main_window.return_value.nmr_worker = None
-    with patch("nmr_predicator_nmrshiftdb2.ask_nucleus", return_value=(None, False)), \
+    with patch("nmr_predicator_nmrshiftdb2.ask_conditions", return_value=(None, None, False)), \
          patch("nmr_predicator_nmrshiftdb2.PredictorWorker") as mock_worker_cls:
         run_prediction(context)
         mock_worker_cls.assert_not_called()
@@ -405,7 +405,7 @@ def test_run_prediction_success_shows_dialog():
     context.current_molecule = Chem.MolFromSmiles("CO")
 
     mock_worker_instance = MagicMock()
-    with patch("nmr_predicator_nmrshiftdb2.ask_nucleus", return_value=("13C", True)), \
+    with patch("nmr_predicator_nmrshiftdb2.ask_conditions", return_value=("13C", "CDCl3", True)), \
          patch("nmr_predicator_nmrshiftdb2.PredictorWorker", return_value=mock_worker_instance), \
          patch("nmr_predicator_nmrshiftdb2.QProgressDialog") as mock_progress_cls, \
          patch("nmr_predicator_nmrshiftdb2.ResultDialog") as mock_dialog_cls:
@@ -434,7 +434,7 @@ def test_run_prediction_error_shows_message():
     context.current_molecule = Chem.MolFromSmiles("CO")
 
     mock_worker_instance = MagicMock()
-    with patch("nmr_predicator_nmrshiftdb2.ask_nucleus", return_value=("1H", True)), \
+    with patch("nmr_predicator_nmrshiftdb2.ask_conditions", return_value=("1H", "CDCl3", True)), \
          patch("nmr_predicator_nmrshiftdb2.PredictorWorker", return_value=mock_worker_instance), \
          patch("nmr_predicator_nmrshiftdb2.QProgressDialog") as mock_progress_cls, \
          patch("nmr_predicator_nmrshiftdb2.QMessageBox") as mock_msgbox:
@@ -512,7 +512,7 @@ def _run_with_progress(cancelled, extra_patch):
     context.get_main_window.return_value = mw
     context.current_molecule = Chem.MolFromSmiles("CO")
     worker = MagicMock()
-    with patch("nmr_predicator_nmrshiftdb2.ask_nucleus", return_value=("1H", True)), \
+    with patch("nmr_predicator_nmrshiftdb2.ask_conditions", return_value=("1H", "CDCl3", True)), \
          patch("nmr_predicator_nmrshiftdb2.PredictorWorker", return_value=worker), \
          patch("nmr_predicator_nmrshiftdb2.QProgressDialog") as mock_progress_cls, \
          patch(f"nmr_predicator_nmrshiftdb2.{extra_patch}") as patched:

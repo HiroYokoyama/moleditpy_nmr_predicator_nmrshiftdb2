@@ -60,7 +60,7 @@ def test_running_prediction_cannot_be_replaced():
     context.current_molecule = Chem.MolFromSmiles("C")
     context.get_main_window.return_value.nmr_worker.isRunning.return_value = True
     with (
-        patch.object(plugin, "ask_nucleus") as ask,
+        patch.object(plugin, "ask_conditions") as ask,
         patch.object(plugin, "QMessageBox"),
     ):
         plugin.run_prediction(context)

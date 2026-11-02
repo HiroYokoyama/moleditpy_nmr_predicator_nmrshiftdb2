@@ -13,7 +13,9 @@ reference index generated from the public SDF export.
 
 The source digest was checked against a direct download from the official data
 distribution. `scripts/build_reference.py` reads its atom-assigned 1H/13C spectra
-and generates our own rooted-fragment search keys. This is not a CDK HOSE table.
+and generates rooted-fragment search keys with solvent partitions, tetrahedral
+configuration and E/Z bond descriptors. Enantiomers share references in the
+supported achiral solvents; unspecified stereo remains separate. This is not a CDK HOSE table.
 `data/provenance.json` records filtering, aggregation and held-out validation.
 The full machine-readable derivative index and its transformation source are
 provided. No original full SDF is needed at runtime.

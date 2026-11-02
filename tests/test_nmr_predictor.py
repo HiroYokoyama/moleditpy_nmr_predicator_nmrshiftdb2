@@ -16,7 +16,7 @@ from nmr_predicator_nmrshiftdb2 import (
     PLUGIN_AUTHOR,
     PLUGIN_DESCRIPTION,
     initialize,
-    ask_nucleus,
+    ask_conditions,
 )
 
 
@@ -40,16 +40,17 @@ def test_initialize():
 
 
 
-def test_ask_nucleus_accept():
+def test_ask_conditions_accept():
     with patch.object(_QDialog, 'exec', return_value=True):
-        with patch.object(_QComboBox, 'currentText', return_value="13C"):
-            nucleus, ok = ask_nucleus(MagicMock())
+        with patch.object(_QComboBox, 'currentText', side_effect=["13C", "DMSO-d6"]):
+            nucleus, solvent, ok = ask_conditions(MagicMock())
             assert ok is True
             assert nucleus == "13C"
+            assert solvent == "DMSO-d6"
 
 
-def test_ask_nucleus_reject():
+def test_ask_conditions_reject():
     with patch.object(_QDialog, 'exec', return_value=False):
-        nucleus, ok = ask_nucleus(MagicMock())
+        nucleus, solvent, ok = ask_conditions(MagicMock())
         assert ok is False
         assert nucleus is None

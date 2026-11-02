@@ -90,6 +90,7 @@ def read_observations(source, audit):
         for field in CALCULATION_FIELDS:
             calculated.update(indexed_values(properties.get(field, "")))
         codes = {}
+        forms = None
         for name, value in properties.items():
             match = re.fullmatch(r"Spectrum (1H|13C) (\d+)", name)
             if not match:
@@ -98,7 +99,8 @@ def read_observations(source, audit):
             if spectrum in calculated:
                 audit["rejected_calculated_spectra"] += 1
                 continue
-            if solvents.get(spectrum) != "Chloroform-D1 (CDCl3)":
+            solvent = next((key for key, label in db.SOLVENTS.items() if solvents.get(spectrum) == label), None)
+            if solvent is None:
                 audit["rejected_other_or_missing_solvent"] += 1
                 continue
             temperature = temperatures.get(spectrum)
@@ -116,31 +118,35 @@ def read_observations(source, audit):
                 audit["rejected_assignments"] += 1
                 continue
             audit["accepted_spectra"] += 1
+            audit["accepted_solvent:" + solvent] += 1
             for parent, ppm in shifts.items():
                 center = mapping[parent]
                 if center not in codes:
-                    codes[center] = db.environment_keys(heavy, center)
+                    forms = db.stereo_forms(heavy) if forms is None else forms
+                    codes[center] = db.environment_keys(heavy, center, forms)
                 keys = tuple((r, codes[center][r]) for r in (0, *db.RADII))
-                observations[(group, nucleus, keys)].append(ppm)
+                observations[(group, solvent, nucleus, keys)].append(ppm)
         if (row + 1) % 10000 == 0:
             print(f"Read {row + 1} records; {len(observations)} grouped sites", file=sys.stderr, flush=True)
-    return [(group, nucleus, dict(keys), statistics.median(values))
-            for (group, nucleus, keys), values in sorted(observations.items())]
+    return [(group, solvent, nucleus, dict(keys), statistics.median(values), min(values), max(values))
+            for (group, solvent, nucleus, keys), values in sorted(observations.items())]
 
 
 def aggregate(observations):
     groups = defaultdict(lambda: defaultdict(list))
-    for group, nucleus, keys, ppm in observations:
+    for group, solvent, nucleus, keys, ppm, low, high in observations:
         for radius, code in keys.items():
-            groups[db.index_key(nucleus, radius, code)][group].append(ppm)
+            groups[db.index_key(nucleus, radius, code, solvent)][group].append((ppm, low, high))
     index = {}
     for key, molecules in sorted(groups.items()):
         threshold = 1 if key.split(":")[1] == "0" else db.MIN_REFERENCES
         if len(molecules) < threshold:
             continue
-        values = [statistics.median(v) for v in molecules.values()]
-        index[key] = [round(statistics.median(values), 6), round(min(values), 6),
-                      round(max(values), 6), len(values)]
+        values = [statistics.median(v[0] for v in observations) for observations in molecules.values()]
+        lows = [v[1] for observations in molecules.values() for v in observations]
+        highs = [v[2] for observations in molecules.values() for v in observations]
+        index[key] = [round(statistics.median(values), 6), round(min(lows), 6),
+                      round(max(highs), 6), len(values)]
     return index
 
 
@@ -149,19 +155,23 @@ def validate(observations):
     heldout = [o for o in observations if int(o[0][:8], 16) % 5 == 0]
     index = aggregate(train)
     report = {}
-    for nucleus in ["1H", "13C"]:
-        errors, counts = [], Counter()
-        targets = [o for o in heldout if o[1] == nucleus]
-        for _, _, keys, ppm in targets:
-            reference = db.find_reference(index, nucleus, keys)
-            if reference:
-                errors.append(reference["ppm"] - ppm)
-                counts[reference["radius"]] += 1
-        report[nucleus] = {"targets": len(targets), "predicted": len(errors),
-                           "coverage": len(errors) / len(targets) if targets else 0,
-                           "mae_ppm": statistics.mean(abs(e) for e in errors) if errors else None,
-                           "rmse_ppm": math.sqrt(statistics.mean(e * e for e in errors)) if errors else None,
-                           "radius_counts": dict(sorted(counts.items()))}
+    for solvent in sorted({o[1] for o in observations}):
+        report[solvent] = {}
+        for nucleus in ["1H", "13C"]:
+            errors, counts = [], Counter()
+            targets = [o for o in heldout if o[1] == solvent and o[2] == nucleus]
+            for _, _, _, keys, ppm, _, _ in targets:
+                reference = db.find_reference(index, nucleus, keys, solvent)
+                if reference:
+                    errors.append(reference["ppm"] - ppm)
+                    counts[reference["radius"]] += 1
+            report[solvent][nucleus] = {
+                "targets": len(targets), "predicted": len(errors),
+                "coverage": len(errors) / len(targets) if targets else 0,
+                "mae_ppm": statistics.mean(abs(e) for e in errors) if errors else None,
+                "rmse_ppm": math.sqrt(statistics.mean(e * e for e in errors)) if errors else None,
+                "radius_counts": dict(sorted(counts.items())),
+            }
     return report
 
 
@@ -172,12 +182,12 @@ def build(source, output):
     RDLogger.DisableLog("rdApp.warning")
     audit = Counter()
     observations = read_observations(source, audit)
-    metadata = {"encoder": db.ENCODER, "solvent": db.SOLVENT,
+    metadata = {"encoder": db.ENCODER, "solvents": sorted({o[1] for o in observations}),
                 "source_url": SOURCE_URL, "source_sha256": digest,
                 "rdkit_version": rdBase.rdkitVersion,
                 "minimum_independent_molecules": db.MIN_REFERENCES,
                 "exact_connectivity_minimum_molecules": 1,
-                "conditions": "CDCl3; reported 273-323 K or unreported temperature; stereo pooled; carbon-bound H group medians",
+                "conditions": "solvent-specific; reported 273-323 K or unreported temperature; E/Z and tetrahedral stereo; enantiomers pooled in achiral solvents; carbon-bound H group medians",
                 "audit": dict(sorted(audit.items())),
                 "connectivity_groups": len({o[0] for o in observations}),
                 "split": "SHA256(nonstereo canonical connectivity SMILES) first 8 hex digits modulo 5 = 0 held out",

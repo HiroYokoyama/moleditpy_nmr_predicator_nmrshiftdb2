@@ -35,7 +35,7 @@ PLUGIN_NAME = "NMR Predictor (nmrshiftdb2)"
 PLUGIN_VERSION = "4.0.0"
 PLUGIN_LICENSE = "GPL-3.0-only"
 PLUGIN_AUTHOR = "HiroYokoyama"
-PLUGIN_DESCRIPTION = "Estimate 1H and 13C NMR shifts from local CDCl3 reference data using Python and RDKit."
+PLUGIN_DESCRIPTION = "Estimate 1H and 13C NMR shifts from local solvent-filtered reference data using Python and RDKit."
 PLUGIN_SUPPORTED_MOLEDITPY_VERSION = ">=5.0.0, <6.0.0"
 
 #: 13C observe frequency relative to 1H (gyromagnetic ratio).
@@ -51,7 +51,16 @@ def table_headers(nucleus):
     coupling_cols = (
         ["Mult.", "J (Hz)"] if nucleus == "1H" else ["Mult. (1H-coupled)", "1J(CH) (Hz)"]
     )
-    return ["Atom ID", "Type", "Shift (ppm)", "Min (ppm)", "Max (ppm)"] + coupling_cols
+    return ["Atom ID", "Type", "Shift (ppm)", "Ref. min (ppm)", "Ref. max (ppm)",
+            "Ref. molecules", "Match (bonds)"] + coupling_cols
+
+
+def reference_match(item):
+    if item.get("method") == "exact_stereostructure":
+        return "Exact"
+    if item.get("radius"):
+        return f"Local ({item['radius']})"
+    return ""
 
 
 def observe_mhz(h1_mhz, nucleus):
@@ -75,11 +84,12 @@ class PredictorWorker(QThread):
     finished_signal = Signal(dict)
     error_signal = Signal(str)
 
-    def __init__(self, mol, nucleus, plugin_dir):
+    def __init__(self, mol, nucleus, plugin_dir, solvent=database.SOLVENT):
         super().__init__()
         self.mol = mol
         self.nucleus = nucleus
         self.plugin_dir = plugin_dir
+        self.solvent = solvent
 
     def run(self):
         try:
@@ -87,6 +97,7 @@ class PredictorWorker(QThread):
                 self.mol, self.nucleus,
                 Path(self.plugin_dir) / "data" / "reference.json.gz",
                 cancelled=getattr(self, "isInterruptionRequested", None),
+                solvent=self.solvent,
             )
             coupling.annotate_predictions(result["mol_with_h"], result["data"], self.nucleus)
             self.finished_signal.emit(result)
@@ -102,7 +113,7 @@ class ResultDialog(QDialog):
     def __init__(self, parent, result_data, context):
         super().__init__(parent)
         self.setWindowTitle(f"NMR Prediction Result ({result_data['nucleus']})")
-        self.resize(600, 800)
+        self.resize(940, 820)
         self.setWindowModality(Qt.WindowModality.NonModal)
 
         self.context = context
@@ -111,6 +122,7 @@ class ResultDialog(QDialog):
         self.data = result_data["data"]
         self.mol_with_h = result_data["mol_with_h"]
         self.nucleus = result_data["nucleus"]
+        self.solvent = result_data.get("solvent", database.SOLVENT)
         self.model_note = result_data.get("model_note", "")
         self.unsupported = result_data.get("unsupported", [])
 
@@ -267,12 +279,20 @@ class ResultDialog(QDialog):
             )
             self.table.setItem(row, 4, max_item)
 
-            for col, text in ((5, item.get("mult", "")), (6, item.get("j_text", ""))):
+            for col, text in ((5, str(item.get("references", ""))), (6, reference_match(item)),
+                              (7, item.get("mult", "")), (8, item.get("j_text", ""))):
                 cell = QTableWidgetItem(text)
                 cell.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 self.table.setItem(row, col, cell)
 
         layout.addWidget(self.table)
+        reference_note = QLabel(
+            "Reference min/max show observed site/group values, not a confidence interval. "
+            "Ref. molecules counts independent connectivities; one molecule may have several "
+            "measurements. Local matches show the neighborhood radius in bonds."
+        )
+        reference_note.setWordWrap(True)
+        layout.addWidget(reference_note)
 
         coupling_note = QLabel(
             "Mult. / J are rule-based estimates (typical values and a Karplus "
@@ -418,7 +438,7 @@ class ResultDialog(QDialog):
 
         ax.set_xlabel("Chemical Shift (ppm)")
         ax.set_ylabel("Intensity")
-        ax.set_title(f"{self.nucleus} NMR Reference Estimates (CDCl3)")
+        ax.set_title(f"{self.nucleus} NMR Reference Estimates ({self.solvent})")
         ax.grid(True, axis="x", linestyle=":", alpha=0.5)
 
         # Re-draw the selection marker: changing the range must not look
@@ -770,7 +790,8 @@ class ResultDialog(QDialog):
         the nmrshiftdb2 prediction. Only 1H coupling is modeled; isotope
         couplings are omitted.</p>
         <p>{database.ATTRIBUTION}</p>
-        <p>CDCl3 estimates; stereochemistry pooled; attached H grouped.
+        <p>{self.solvent} estimates; E/Z and tetrahedral configurations matched;
+        enantiomers pooled; attached H grouped.
         Reference ranges are not confidence intervals.</p>
         <p>Author: {PLUGIN_AUTHOR}<br>Version: {PLUGIN_VERSION}<br>
         Shared coupling module: {coupling.COUPLING_MODULE_VERSION}</p>
@@ -842,6 +863,8 @@ class ResultDialog(QDialog):
                             f"{item['ppm']:.2f}",
                             f"{item.get('min', 0.0):.2f}",
                             f"{item.get('max', 0.0):.2f}",
+                            item.get("references", ""),
+                            reference_match(item),
                             item.get("mult", ""),
                             item.get("j_text", ""),
                         ]
@@ -850,7 +873,8 @@ class ResultDialog(QDialog):
                 writer.writerow([])
                 writer.writerow(["# Attribution", database.ATTRIBUTION])
                 writer.writerow(["# Data license", database.DATA_LICENSE_URL])
-                writer.writerow(["# Model", getattr(self, "model_note", "CDCl3 local reference estimates")])
+                writer.writerow(["# Solvent", self.solvent])
+                writer.writerow(["# Model", getattr(self, "model_note", f"{self.solvent} local reference estimates")])
 
             QMessageBox.information(
                 self, "Success", f"Exported successfully to:\n{filename}"
@@ -910,14 +934,14 @@ def run_prediction(context):
         return
 
     # 1. Select Nucleus
-    nucleus, ok = ask_nucleus(mw)
+    nucleus, solvent, ok = ask_conditions(mw)
     if not ok:
         return
 
     # 2. Setup Progress Dialog
     plugin_dir = Path(__file__).parent
     progress = QProgressDialog(
-        f"Searching {nucleus} CDCl3 reference data...", "Cancel", 0, 0, mw
+        f"Searching {nucleus} {solvent} reference data...", "Cancel", 0, 0, mw
     )
     progress.setWindowModality(Qt.WindowModality.WindowModal)
     progress.setMinimumDuration(0)  # Show immediately
@@ -925,7 +949,7 @@ def run_prediction(context):
 
     # 3. Start Worker Thread
     # We need to keep a reference to the worker to prevent garbage collection
-    worker = PredictorWorker(mol, nucleus, plugin_dir)
+    worker = PredictorWorker(mol, nucleus, plugin_dir, solvent=solvent)
     mw.nmr_worker = worker
 
     def _release():
@@ -970,18 +994,26 @@ def run_prediction(context):
     worker.start()
 
 
-def ask_nucleus(parent):
-    """Simple dialog to choose nucleus."""
+def ask_conditions(parent):
+    """Choose nucleus and an explicitly filtered reference solvent."""
     dialog = QDialog(parent)
-    dialog.setWindowTitle("Select Nucleus")
-    dialog.resize(250, 120)
+    dialog.setWindowTitle("NMR Prediction Conditions")
+    dialog.resize(360, 210)
     layout = QVBoxLayout()
 
-    layout.addWidget(QLabel("Select nucleus (CDCl3 reference estimates):"))
+    layout.addWidget(QLabel("Nucleus:"))
 
     combo = QComboBox()
     combo.addItems(["1H", "13C"])
     layout.addWidget(combo)
+
+    layout.addWidget(QLabel("Reference solvent:"))
+    solvent_combo = QComboBox()
+    solvent_combo.addItems(list(database.SOLVENTS))
+    layout.addWidget(solvent_combo)
+    note = QLabel("Only the selected solvent is searched. Reference coverage varies by solvent.")
+    note.setWordWrap(True)
+    layout.addWidget(note)
 
     btn = QPushButton("Predict")
     btn.clicked.connect(dialog.accept)
@@ -990,8 +1022,8 @@ def ask_nucleus(parent):
     dialog.setLayout(layout)
 
     if dialog.exec():
-        return combo.currentText(), True
-    return None, False
+        return combo.currentText(), solvent_combo.currentText(), True
+    return None, None, False
 
 
 # --- 4. Initialization Hook (Plugin Development Manual Section 2) ---
