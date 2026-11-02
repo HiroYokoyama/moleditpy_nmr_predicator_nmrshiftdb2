@@ -12,7 +12,7 @@ from unittest.mock import MagicMock
 import pytest
 from rdkit import Chem
 
-from nmr_predicator_nmrshiftdb2 import database as db, PredictorWorker
+from nmr_predicator_nmrshiftdb2 import database as db, PredictorWorker, PLUGIN_VERSION
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("reference_builder", ROOT / "scripts/build_reference.py")
@@ -236,7 +236,7 @@ def test_plugin_zip_includes_regeneration_source_and_no_binaries(tmp_path):
             shutil.copytree(ROOT / name, destination)
         else:
             shutil.copy2(ROOT / name, destination)
-    archive = release.package(staged, config, "4.0.0")
+    archive = release.package(staged, config, PLUGIN_VERSION)
     with ZipFile(archive) as zipped:
         names = zipped.namelist()
         prefix = "nmr_predicator_nmrshiftdb2/"
