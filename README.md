@@ -1,6 +1,9 @@
 # NMR Prediction Plugin for MoleditPy
 
 [![CI](https://github.com/HiroYokoyama/moleditpy_nmr_predicator_nmrshiftdb2/actions/workflows/test.yml/badge.svg)](https://github.com/HiroYokoyama/moleditpy_nmr_predicator_nmrshiftdb2/actions/workflows/test.yml)
+![Test Coverage](https://img.shields.io/badge/coverage->90%25-green)
+[![GitHub tag](https://img.shields.io/github/v/tag/HiroYokoyama/moleditpy_nmr_predicator_nmrshiftdb2?label=version)](https://github.com/HiroYokoyama/moleditpy_nmr_predicator_nmrshiftdb2/tags)
+[![GitHub Downloads](https://img.shields.io/github/downloads/HiroYokoyama/moleditpy_nmr_predicator_nmrshiftdb2/total)](https://github.com/HiroYokoyama/moleditpy_nmr_predicator_nmrshiftdb2/releases)
 
 Offline 1H/13C chemical-shift estimates from **nmrshiftdb2 experimental data**,
 using an original **Python + RDKit** reference search. The ZIP includes prepared reference data and runs offline; no Java runtime
