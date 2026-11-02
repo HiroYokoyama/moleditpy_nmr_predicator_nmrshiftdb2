@@ -2,7 +2,6 @@
 
 from unittest.mock import MagicMock, patch
 
-import pytest
 from rdkit import Chem
 from test_nmr_coverage import _make_dialog
 
@@ -10,20 +9,8 @@ import nmr_predicator_nmrshiftdb2 as plugin
 from nmr_predicator_nmrshiftdb2 import coupling
 
 
-@pytest.mark.parametrize("value", ["nan", "inf", "-inf", "1e999"])
-@pytest.mark.parametrize("column", [0, 1, 2])
-def test_nonfinite_predictions_are_skipped(tmp_path, value, column):
-    mol = Chem.MolFromSmiles("C")
-    worker = plugin.PredictorWorker(mol, "13C", tmp_path)
-    fields = ["1.0", "2.0", "3.0"]
-    fields[column] = value
-    assert worker._parse_output("1: " + " ".join(fields), mol) == []
 
 
-def test_deuterium_is_not_a_predicted_1h_nucleus(tmp_path):
-    mol = Chem.MolFromSmiles("[2H]C")
-    worker = plugin.PredictorWorker(mol, "1H", tmp_path)
-    assert worker._parse_output("1: 1 2 3", mol) == []
 
 
 def test_deuterium_is_not_a_coupling_proton():
@@ -73,7 +60,7 @@ def test_running_prediction_cannot_be_replaced():
     context.current_molecule = Chem.MolFromSmiles("C")
     context.get_main_window.return_value.nmr_worker.isRunning.return_value = True
     with (
-        patch.object(plugin, "ask_nucleus") as ask,
+        patch.object(plugin, "ask_conditions") as ask,
         patch.object(plugin, "QMessageBox"),
     ):
         plugin.run_prediction(context)

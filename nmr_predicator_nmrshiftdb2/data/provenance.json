@@ -1,0 +1,273 @@
+{
+  "attribution": "Contains information from nmrshiftdb2 (www.nmrshiftdb.org), which is made available here under the nmrshiftdb2 Database License.",
+  "audit": {
+    "accepted_solvent:Acetone-d6": 116,
+    "accepted_solvent:C6D6": 88,
+    "accepted_solvent:CCl4": 63,
+    "accepted_solvent:CD3CN": 21,
+    "accepted_solvent:CD3OD": 251,
+    "accepted_solvent:CDCl3": 2494,
+    "accepted_solvent:D2O": 824,
+    "accepted_solvent:DMSO-d6": 407,
+    "accepted_solvent:Pyridine-d5": 62,
+    "accepted_solvent:THF-d8": 12,
+    "accepted_spectra": 4338,
+    "records": 58187,
+    "rejected_assignments": 1,
+    "rejected_calculated_spectra": 8268,
+    "rejected_chemistry": 8732,
+    "rejected_other_or_missing_solvent": 40989,
+    "rejected_parse": 158,
+    "rejected_temperature": 1540
+  },
+  "conditions": "solvent-specific; reported 273-323 K or unreported temperature; E/Z and tetrahedral stereo; enantiomers pooled in achiral solvents; carbon-bound H group medians",
+  "connectivity_groups": 3152,
+  "data_license": "nmrshiftdb2 Database License",
+  "data_license_url": "https://nmrshiftdb.nmr.uni-koeln.de/nmrshiftdbhtml/nmrshiftdb2datalicense.txt",
+  "database_rights": "Database rights retained by the nmrshiftdb2 contributors.",
+  "encoder": "moleditpy-rdkit-stereo-fragment-v2",
+  "entries": 44878,
+  "exact_connectivity_minimum_molecules": 1,
+  "index_sha256": "2a4d36a0bf41bd5f85a574abd28bd12f14914aeacdbf7d07599afb0cbc963108",
+  "minimum_independent_molecules": 3,
+  "rdkit_version": "2026.03.6",
+  "solvents": [
+    "Acetone-d6",
+    "C6D6",
+    "CCl4",
+    "CD3CN",
+    "CD3OD",
+    "CDCl3",
+    "D2O",
+    "DMSO-d6",
+    "Pyridine-d5",
+    "THF-d8"
+  ],
+  "source_sha256": "0e86688360e23c88ccf0eb82a1251315fa57ec6f5b376dc8886f3311793a0afe",
+  "source_url": "https://downloads.sourceforge.net/project/nmrshiftdb2/data/nmrshiftdb2withsignals.sd",
+  "split": "SHA256(nonstereo canonical connectivity SMILES) first 8 hex digits modulo 5 = 0 held out",
+  "validation": {
+    "Acetone-d6": {
+      "13C": {
+        "coverage": 0.16923076923076924,
+        "mae_ppm": 1.8220779220779233,
+        "predicted": 77,
+        "radius_counts": {
+          "2": 50,
+          "3": 21,
+          "4": 6
+        },
+        "rmse_ppm": 3.0610465276038923,
+        "targets": 455
+      },
+      "1H": {
+        "coverage": 0.0,
+        "mae_ppm": null,
+        "predicted": 0,
+        "radius_counts": {},
+        "rmse_ppm": null,
+        "targets": 20
+      }
+    },
+    "C6D6": {
+      "13C": {
+        "coverage": 0.0,
+        "mae_ppm": null,
+        "predicted": 0,
+        "radius_counts": {},
+        "rmse_ppm": null,
+        "targets": 86
+      },
+      "1H": {
+        "coverage": 0.0,
+        "mae_ppm": null,
+        "predicted": 0,
+        "radius_counts": {},
+        "rmse_ppm": null,
+        "targets": 3
+      }
+    },
+    "CCl4": {
+      "13C": {
+        "coverage": 0.32,
+        "mae_ppm": 1.2656249999999962,
+        "predicted": 16,
+        "radius_counts": {
+          "2": 10,
+          "3": 4,
+          "4": 2
+        },
+        "rmse_ppm": 1.778825103825553,
+        "targets": 50
+      },
+      "1H": {
+        "coverage": 0.0,
+        "mae_ppm": null,
+        "predicted": 0,
+        "radius_counts": {},
+        "rmse_ppm": null,
+        "targets": 2
+      }
+    },
+    "CD3CN": {
+      "13C": {
+        "coverage": 0.0,
+        "mae_ppm": null,
+        "predicted": 0,
+        "radius_counts": {},
+        "rmse_ppm": null,
+        "targets": 30
+      },
+      "1H": {
+        "coverage": 0.0,
+        "mae_ppm": null,
+        "predicted": 0,
+        "radius_counts": {},
+        "rmse_ppm": null,
+        "targets": 1
+      }
+    },
+    "CD3OD": {
+      "13C": {
+        "coverage": 0.3650586701434159,
+        "mae_ppm": 1.6038571428571426,
+        "predicted": 280,
+        "radius_counts": {
+          "2": 125,
+          "3": 95,
+          "4": 60
+        },
+        "rmse_ppm": 2.925130369500037,
+        "targets": 767
+      },
+      "1H": {
+        "coverage": 0.1411764705882353,
+        "mae_ppm": 0.13374999999999995,
+        "predicted": 12,
+        "radius_counts": {
+          "2": 10,
+          "3": 2
+        },
+        "rmse_ppm": 0.18456593221213213,
+        "targets": 85
+      }
+    },
+    "CDCl3": {
+      "13C": {
+        "coverage": 0.4128051818634778,
+        "mae_ppm": 1.6730295534097765,
+        "predicted": 1657,
+        "radius_counts": {
+          "2": 914,
+          "3": 374,
+          "4": 369
+        },
+        "rmse_ppm": 2.904131844900853,
+        "targets": 4014
+      },
+      "1H": {
+        "coverage": 0.46309963099630996,
+        "mae_ppm": 0.16536258964143424,
+        "predicted": 251,
+        "radius_counts": {
+          "2": 125,
+          "3": 62,
+          "4": 64
+        },
+        "rmse_ppm": 0.3184803353477059,
+        "targets": 542
+      }
+    },
+    "D2O": {
+      "13C": {
+        "coverage": 0.344,
+        "mae_ppm": 4.597676829457363,
+        "predicted": 129,
+        "radius_counts": {
+          "2": 76,
+          "3": 30,
+          "4": 23
+        },
+        "rmse_ppm": 16.390975179506,
+        "targets": 375
+      },
+      "1H": {
+        "coverage": 0.5036496350364964,
+        "mae_ppm": 0.20249214975845412,
+        "predicted": 207,
+        "radius_counts": {
+          "2": 120,
+          "3": 50,
+          "4": 37
+        },
+        "rmse_ppm": 0.451028564933386,
+        "targets": 411
+      }
+    },
+    "DMSO-d6": {
+      "13C": {
+        "coverage": 0.41955445544554454,
+        "mae_ppm": 1.8434379056047203,
+        "predicted": 339,
+        "radius_counts": {
+          "2": 173,
+          "3": 95,
+          "4": 71
+        },
+        "rmse_ppm": 3.0167648691023063,
+        "targets": 808
+      },
+      "1H": {
+        "coverage": 0.2988505747126437,
+        "mae_ppm": 0.3610984615384616,
+        "predicted": 26,
+        "radius_counts": {
+          "2": 23,
+          "3": 3
+        },
+        "rmse_ppm": 0.588624247964954,
+        "targets": 87
+      }
+    },
+    "Pyridine-d5": {
+      "13C": {
+        "coverage": 0.21897810218978103,
+        "mae_ppm": 1.097416666666665,
+        "predicted": 60,
+        "radius_counts": {
+          "2": 39,
+          "3": 15,
+          "4": 6
+        },
+        "rmse_ppm": 1.8073692898796303,
+        "targets": 274
+      },
+      "1H": {
+        "coverage": 0,
+        "mae_ppm": null,
+        "predicted": 0,
+        "radius_counts": {},
+        "rmse_ppm": null,
+        "targets": 0
+      }
+    },
+    "THF-d8": {
+      "13C": {
+        "coverage": 0,
+        "mae_ppm": null,
+        "predicted": 0,
+        "radius_counts": {},
+        "rmse_ppm": null,
+        "targets": 0
+      },
+      "1H": {
+        "coverage": 0,
+        "mae_ppm": null,
+        "predicted": 0,
+        "radius_counts": {},
+        "rmse_ppm": null,
+        "targets": 0
+      }
+    }
+  }
+}

@@ -5,8 +5,6 @@ that the worker attaches the multiplets and that the result window shows,
 plots and exports them. Stubs come from conftest.py.
 """
 import csv
-import subprocess
-import sys
 from unittest.mock import MagicMock
 
 import pytest
@@ -18,16 +16,25 @@ from nmr_predicator_nmrshiftdb2 import PredictorWorker, ResultDialog
 
 
 def _run_worker(monkeypatch, tmp_path, mol, nucleus, stdout):
-    monkeypatch.setattr(sys.modules["shutil"], "which", lambda _: "/usr/bin/java")
-    lib_dir = tmp_path / "lib"
-    lib_dir.mkdir(exist_ok=True)
-    (lib_dir / ("predictorh.jar" if nucleus == "1H" else "predictorc.jar")).touch()
+    """Feed deterministic reference estimates to the real annotation/UI path."""
+    import re
+    from nmr_predicator_nmrshiftdb2 import database
 
+    def fake_predict(mol, nucleus, *args, **kwargs):
+        expanded = database.prepare_molecule(mol)
+        data = []
+        for index, low, ppm, high in re.findall(r"(\d+):\s*(\S+)\s+(\S+)\s+(\S+)", stdout):
+            index = int(index) - 1
+            atom = expanded.GetAtomWithIdx(index)
+            parent = atom.GetNeighbors()[0].GetIdx() if atom.GetAtomicNum() == 1 else index
+            data.append(dict(idx=index, parent_idx=parent, atom=atom.GetSymbol(),
+                             min=float(low), ppm=float(ppm), max=float(high)))
+        return dict(nucleus=nucleus, data=data, mol_with_h=expanded)
+
+    monkeypatch.setattr(database, "predict", fake_predict)
     worker = PredictorWorker(mol, nucleus, tmp_path)
     worker.finished_signal = MagicMock()
     worker.error_signal = MagicMock()
-    proc = MagicMock(stdout=stdout, stderr="")
-    monkeypatch.setattr(subprocess, "run", lambda *a, **kw: proc)
     worker.run()
     worker.error_signal.emit.assert_not_called()
     return worker.finished_signal.emit.call_args[0][0]
@@ -69,25 +76,13 @@ def test_worker_adds_13c_one_bond_couplings(monkeypatch, tmp_path):
     assert (by_idx[1]["mult"], by_idx[1]["j_ch"]) == ("t", 141.0)
 
 
-def test_worker_keeps_backend_stereo_handling(monkeypatch, tmp_path):
-    """addCoords must not change what is sent to Java: the molfile is still 2D."""
-    sent = {}
-
-    def fake_run(cmd, **kwargs):
-        with open(cmd[-1], encoding="ascii") as handle:
-            sent["block"] = handle.read()
-        return MagicMock(stdout="1: 10 18 26", stderr="")
-
-    monkeypatch.setattr(sys.modules["shutil"], "which", lambda _: "/usr/bin/java")
-    (tmp_path / "lib").mkdir()
-    (tmp_path / "lib" / "predictorc.jar").touch()
-    worker = PredictorWorker(_ethanol_3d(), "13C", tmp_path)
-    worker.finished_signal = MagicMock()
-    worker.error_signal = MagicMock()
-    monkeypatch.setattr(subprocess, "run", fake_run)
-    worker.run()
-    z_values = [float(line[20:30]) for line in sent["block"].splitlines()[4:13]]
-    assert all(z == 0.0 for z in z_values)
+def test_worker_keeps_input_geometry_for_coupling_estimates(monkeypatch, tmp_path):
+    """A native reference lookup does not flatten or mutate host coordinates."""
+    mol = _ethanol_3d()
+    before = Chem.MolToMolBlock(mol)
+    payload = _run_worker(monkeypatch, tmp_path, mol, "13C", "1: 10 18 26")
+    assert Chem.MolToMolBlock(mol) == before
+    assert payload["mol_with_h"].GetConformer().Is3D()
 
 
 # -- result window -----------------------------------------------------------
@@ -109,8 +104,8 @@ def _dialog(nucleus="1H"):
 
 def test_table_has_coupling_columns():
     dlg = _dialog("1H")
-    assert dlg.table.item(0, 5).text() == "t"
-    assert dlg.table.item(0, 6).text() == "7.0"
+    assert dlg.table.item(0, 7).text() == "t"
+    assert dlg.table.item(0, 8).text() == "7.0"
 
 
 def test_headers():

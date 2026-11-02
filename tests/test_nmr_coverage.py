@@ -1,6 +1,5 @@
 """
 Additional coverage tests for nmr_predicator_nmrshiftdb2:
-  - PredictorWorker.run() success / no-prediction / CalledProcessError / generic-exception paths
   - ResultDialog construction and interaction (hover, click, highlight, sync, export, close)
   - run_prediction() orchestration (no molecule, cancelled nucleus dialog, success, error)
   - run() entry point (with and without a .host wrapper)
@@ -9,7 +8,6 @@ Qt / pyvista / matplotlib stubs are installed by conftest.py before this file is
 imported; the QTableWidget / QTableWidgetItem / QDialog / QPushButton stubs were
 extended there specifically so ResultDialog can be instantiated in this file.
 """
-import subprocess
 import sys
 import types
 from unittest.mock import MagicMock, patch
@@ -19,9 +17,7 @@ import pytest
 from rdkit import Chem
 from rdkit.Chem import AllChem
 
-import nmr_predicator_nmrshiftdb2 as nmrmod
 from nmr_predicator_nmrshiftdb2 import (
-    PredictorWorker,
     ResultDialog,
     run_prediction,
     run,
@@ -73,99 +69,12 @@ def _make_dialog(data=None, nucleus="1H"):
 # PredictorWorker.run() — success / empty / error branches
 # ---------------------------------------------------------------------------
 
-def test_run_success_emits_finished_signal(monkeypatch, tmp_path):
-    monkeypatch.setattr(sys.modules["shutil"], "which", lambda _: "/usr/bin/java")
-
-    lib_dir = tmp_path / "lib"
-    lib_dir.mkdir()
-    (lib_dir / "predictorh.jar").touch()
-
-    mol = Chem.AddHs(Chem.MolFromSmiles("C"))  # C + 4H
-    worker = PredictorWorker(mol, "1H", tmp_path)
-    worker.finished_signal = MagicMock()
-    worker.error_signal = MagicMock()
-
-    fake_proc = MagicMock()
-    fake_proc.stdout = "2: 0.9 1.1 1.3"  # java idx 2 -> 0-based 1 -> H
-    fake_proc.stderr = ""
-    monkeypatch.setattr(subprocess, "run", lambda *a, **kw: fake_proc)
-
-    worker.run()
-
-    worker.finished_signal.emit.assert_called_once()
-    worker.error_signal.emit.assert_not_called()
-    payload = worker.finished_signal.emit.call_args[0][0]
-    assert payload["nucleus"] == "1H"
-    assert len(payload["data"]) == 1
-    assert payload["data"][0]["atom"] == "H"
 
 
-def test_run_emits_error_when_no_predictions(monkeypatch, tmp_path):
-    monkeypatch.setattr(sys.modules["shutil"], "which", lambda _: "/usr/bin/java")
-
-    lib_dir = tmp_path / "lib"
-    lib_dir.mkdir()
-    (lib_dir / "predictorh.jar").touch()
-
-    mol = Chem.AddHs(Chem.MolFromSmiles("C"))
-    worker = PredictorWorker(mol, "1H", tmp_path)
-    worker.finished_signal = MagicMock()
-    worker.error_signal = MagicMock()
-
-    fake_proc = MagicMock()
-    fake_proc.stdout = "no peaks here"
-    fake_proc.stderr = ""
-    monkeypatch.setattr(subprocess, "run", lambda *a, **kw: fake_proc)
-
-    worker.run()
-
-    worker.error_signal.emit.assert_called_once()
-    worker.finished_signal.emit.assert_not_called()
-    assert "No NMR peaks predicted" in worker.error_signal.emit.call_args[0][0]
 
 
-def test_run_emits_error_on_called_process_error(monkeypatch, tmp_path):
-    monkeypatch.setattr(sys.modules["shutil"], "which", lambda _: "/usr/bin/java")
-
-    lib_dir = tmp_path / "lib"
-    lib_dir.mkdir()
-    (lib_dir / "predictorh.jar").touch()
-
-    mol = Chem.AddHs(Chem.MolFromSmiles("C"))
-    worker = PredictorWorker(mol, "1H", tmp_path)
-    worker.finished_signal = MagicMock()
-    worker.error_signal = MagicMock()
-
-    def _raise(*a, **kw):
-        raise subprocess.CalledProcessError(1, "java", output="out", stderr="boom")
-
-    monkeypatch.setattr(subprocess, "run", _raise)
-
-    worker.run()
-
-    worker.error_signal.emit.assert_called_once()
-    msg = worker.error_signal.emit.call_args[0][0]
-    assert "Java Execution Failed" in msg
-    assert "boom" in msg
 
 
-def test_run_emits_error_on_unexpected_exception(monkeypatch, tmp_path):
-    monkeypatch.setattr(sys.modules["shutil"], "which", lambda _: "/usr/bin/java")
-
-    lib_dir = tmp_path / "lib"
-    lib_dir.mkdir()
-    (lib_dir / "predictorh.jar").touch()
-
-    # Passing None as the molecule makes Chem.Mol(None) raise inside run(),
-    # exercising the generic `except Exception` branch.
-    worker = PredictorWorker(None, "1H", tmp_path)
-    worker.finished_signal = MagicMock()
-    worker.error_signal = MagicMock()
-
-    worker.run()
-
-    worker.error_signal.emit.assert_called_once()
-    assert "Unexpected Error" in worker.error_signal.emit.call_args[0][0]
 
 
 # ---------------------------------------------------------------------------
@@ -481,7 +390,7 @@ def test_run_prediction_cancelled_nucleus_dialog_no_worker():
     context = MagicMock()
     context.current_molecule = Chem.MolFromSmiles("C")
     context.get_main_window.return_value.nmr_worker = None
-    with patch("nmr_predicator_nmrshiftdb2.ask_nucleus", return_value=(None, False)), \
+    with patch("nmr_predicator_nmrshiftdb2.ask_conditions", return_value=(None, None, False)), \
          patch("nmr_predicator_nmrshiftdb2.PredictorWorker") as mock_worker_cls:
         run_prediction(context)
         mock_worker_cls.assert_not_called()
@@ -495,7 +404,7 @@ def test_run_prediction_success_shows_dialog():
     context.current_molecule = Chem.MolFromSmiles("CO")
 
     mock_worker_instance = MagicMock()
-    with patch("nmr_predicator_nmrshiftdb2.ask_nucleus", return_value=("13C", True)), \
+    with patch("nmr_predicator_nmrshiftdb2.ask_conditions", return_value=("13C", "CDCl3", True)), \
          patch("nmr_predicator_nmrshiftdb2.PredictorWorker", return_value=mock_worker_instance), \
          patch("nmr_predicator_nmrshiftdb2.QProgressDialog") as mock_progress_cls, \
          patch("nmr_predicator_nmrshiftdb2.ResultDialog") as mock_dialog_cls:
@@ -524,7 +433,7 @@ def test_run_prediction_error_shows_message():
     context.current_molecule = Chem.MolFromSmiles("CO")
 
     mock_worker_instance = MagicMock()
-    with patch("nmr_predicator_nmrshiftdb2.ask_nucleus", return_value=("1H", True)), \
+    with patch("nmr_predicator_nmrshiftdb2.ask_conditions", return_value=("1H", "CDCl3", True)), \
          patch("nmr_predicator_nmrshiftdb2.PredictorWorker", return_value=mock_worker_instance), \
          patch("nmr_predicator_nmrshiftdb2.QProgressDialog") as mock_progress_cls, \
          patch("nmr_predicator_nmrshiftdb2.QMessageBox") as mock_msgbox:
@@ -602,7 +511,7 @@ def _run_with_progress(cancelled, extra_patch):
     context.get_main_window.return_value = mw
     context.current_molecule = Chem.MolFromSmiles("CO")
     worker = MagicMock()
-    with patch("nmr_predicator_nmrshiftdb2.ask_nucleus", return_value=("1H", True)), \
+    with patch("nmr_predicator_nmrshiftdb2.ask_conditions", return_value=("1H", "CDCl3", True)), \
          patch("nmr_predicator_nmrshiftdb2.PredictorWorker", return_value=worker), \
          patch("nmr_predicator_nmrshiftdb2.QProgressDialog") as mock_progress_cls, \
          patch(f"nmr_predicator_nmrshiftdb2.{extra_patch}") as patched:
@@ -621,57 +530,5 @@ def test_cancelled_prediction_does_not_open_the_result_dialog():
 def test_cancelled_prediction_does_not_show_the_error_box():
     worker, msgbox, _mw = next(_run_with_progress(True, "QMessageBox"))
     on_error = worker.error_signal.connect.call_args[0][0]
-    on_error("java exploded")
+    on_error("reference prediction failed")
     msgbox.critical.assert_not_called()
-
-
-# ---------------------------------------------------------------------------
-# Java timeout
-# ---------------------------------------------------------------------------
-
-
-def test_java_timeout_is_reported(monkeypatch, tmp_path):
-    import subprocess as _sp
-
-    mol = Chem.MolFromSmiles("CO")
-    worker = PredictorWorker(mol, "13C", tmp_path)
-
-    lib = tmp_path / "lib"
-    lib.mkdir()
-    (lib / "predictorc.jar").write_bytes(b"jar")
-
-    monkeypatch.setattr(nmrmod.shutil, "which", lambda _name: "/usr/bin/java")
-    monkeypatch.setattr(
-        nmrmod.subprocess,
-        "run",
-        lambda *a, **k: (_ for _ in ()).throw(_sp.TimeoutExpired("java", 1)),
-    )
-
-    errors = []
-    worker.error_signal = MagicMock()
-    worker.error_signal.emit = errors.append
-    worker.run()
-
-    assert errors and "timed out" in errors[0]
-
-
-def test_subprocess_run_passes_a_timeout(monkeypatch, tmp_path):
-    mol = Chem.MolFromSmiles("CO")
-    worker = PredictorWorker(mol, "13C", tmp_path)
-
-    lib = tmp_path / "lib"
-    lib.mkdir()
-    (lib / "predictorc.jar").write_bytes(b"jar")
-
-    captured = {}
-
-    def _fake_run(*a, **kw):
-        captured.update(kw)
-        raise RuntimeError("stop here")
-
-    monkeypatch.setattr(nmrmod.shutil, "which", lambda _name: "/usr/bin/java")
-    monkeypatch.setattr(nmrmod.subprocess, "run", _fake_run)
-    worker.error_signal = MagicMock()
-    worker.run()
-
-    assert captured.get("timeout") == nmrmod.JAVA_TIMEOUT_SEC

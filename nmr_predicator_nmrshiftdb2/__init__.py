@@ -1,9 +1,5 @@
 
 from ._qt_callbacks import connect_queued
-import os
-import shutil
-import subprocess
-import re
 import math
 import csv
 from pathlib import Path
@@ -27,25 +23,20 @@ from PySide6.QtCore import Qt, QThread, Signal, QTimer
 from rdkit import Chem
 import pyvista as pv
 import numpy as np
-import tempfile
-from rdkit.Chem import AllChem
 import logging
 
-from . import coupling
+from . import coupling, database
 
 # Periodic table for VdW radii
 PTABLE = Chem.GetPeriodicTable()
 
 # --- Metadata (Plugin Development Manual Section 2) ---
 PLUGIN_NAME = "NMR Predictor (nmrshiftdb2)"
-PLUGIN_VERSION = "3.0.3"
+PLUGIN_VERSION = "4.0.0"
+PLUGIN_LICENSE = "GPL-3.0-only"
 PLUGIN_AUTHOR = "HiroYokoyama"
-PLUGIN_DESCRIPTION = "Predict 1H and 13C NMR shifts using nmrshiftdb2. Requires Java Runtime (JRE)."
+PLUGIN_DESCRIPTION = "Estimate 1H and 13C NMR shifts from local solvent-filtered reference data using Python and RDKit."
 PLUGIN_SUPPORTED_MOLEDITPY_VERSION = ">=5.0.0, <6.0.0"
-
-#: Upper bound for one java prediction run; a hung JVM would otherwise
-#: keep the worker thread (and the progress dialog) alive forever.
-JAVA_TIMEOUT_SEC = 300
 
 #: 13C observe frequency relative to 1H (gyromagnetic ratio).
 C13_TO_H1 = 0.25145
@@ -60,7 +51,16 @@ def table_headers(nucleus):
     coupling_cols = (
         ["Mult.", "J (Hz)"] if nucleus == "1H" else ["Mult. (1H-coupled)", "1J(CH) (Hz)"]
     )
-    return ["Atom ID", "Type", "Shift (ppm)", "Min (ppm)", "Max (ppm)"] + coupling_cols
+    return ["Atom ID", "Type", "Shift (ppm)", "Ref. min (ppm)", "Ref. max (ppm)",
+            "Ref. molecules", "Match (bonds)"] + coupling_cols
+
+
+def reference_match(item):
+    if item.get("method") == "exact_stereostructure":
+        return "Exact"
+    if item.get("radius"):
+        return f"Local ({item['radius']})"
+    return ""
 
 
 def observe_mhz(h1_mhz, nucleus):
@@ -77,249 +77,35 @@ def describe_multiplet(item):
     return f", {item['mult']}"
 
 
-# --- 1. Background Worker (Java Execution) ---
+# --- 1. Background Worker (local Python/RDKit search) ---
 class PredictorWorker(QThread):
-    """Worker thread to prevent GUI freeze during calculation"""
+    """Search the bundled reference data without Java or network access."""
 
-    finished_signal = Signal(dict)  # On success
-    error_signal = Signal(str)  # On error
+    finished_signal = Signal(dict)
+    error_signal = Signal(str)
 
-    def __init__(self, mol, nucleus, plugin_dir):
+    def __init__(self, mol, nucleus, plugin_dir, solvent=database.SOLVENT):
         super().__init__()
         self.mol = mol
         self.nucleus = nucleus
         self.plugin_dir = plugin_dir
+        self.solvent = solvent
 
     def run(self):
-        temp_mol_path = None
         try:
-            # Check Java
-            if not shutil.which("java"):
-                self.error_signal.emit(
-                    "Java Runtime (java command) not found.\nPlease install Java."
-                )
-                return
-
-            jar_name = "predictorh.jar" if self.nucleus == "1H" else "predictorc.jar"
-            jar_path = self.plugin_dir / "lib" / jar_name
-
-            if not jar_path.exists():
-                self.error_signal.emit(
-                    f"JAR file not found:\n{jar_path}\nPlease download it from SourceForge."
-                )
-                return
-
-            # 1. Create calculation copy
-            mol_calc = Chem.Mol(self.mol)
-
-            # 2. Sanitize (Check structure integrity)
-            try:
-                Chem.SanitizeMol(mol_calc)
-            except Exception as e:
-                self.error_signal.emit(
-                    f"The structure could not be sanitized:\n{e}\n\n"
-                    "Any prediction from it would be unreliable. "
-                    "Please correct the valences and try again."
-                )
-                return
-
-            # 3. Perceive stereochemistry from 3D before the layout flattens it.
-            if mol_calc.GetNumConformers() > 0 and mol_calc.GetConformer().Is3D():
-                Chem.AssignStereochemistryFrom3D(mol_calc)
-
-            # 4. Explicit hydrogens. predictorh.jar emits one line per hydrogen
-            # and numbers heavy atoms first, so without explicit H here every
-            # returned index lands past the end of mol_calc and a 1H run
-            # produces no peaks at all.
-            # addCoords places them in 3D, which the coupling estimate below
-            # needs for its dihedral angles (the 2D layout replaces them for
-            # the backend anyway).
-            mol_calc = Chem.AddHs(mol_calc, addCoords=True)
-            mol_geometry = Chem.Mol(mol_calc)
-
-            # 5. Clean 2D layout. The backend reads double-bond geometry off
-            # these coordinates, which is why the E/Z flags must still be
-            # present at this point — clearing them first (as this code used
-            # to) made every olefin come back as its trans isomer.
-            AllChem.Compute2DCoords(mol_calc)
-            Chem.AssignStereochemistry(mol_calc, force=True, cleanIt=True)
-
-            # Set a generic name if missing (some readers crash on empty name)
-            if not mol_calc.HasProp("_Name"):
-                mol_calc.SetProp("_Name", "NMR_Calculation")
-
-            # Create temp file in system temp directory
-            fd, temp_mol_path_str = tempfile.mkstemp(
-                suffix=".mol", prefix=f"nmrp_{self.nucleus}_"
+            result = database.predict(
+                self.mol, self.nucleus,
+                Path(self.plugin_dir) / "data" / "reference.json.gz",
+                cancelled=getattr(self, "isInterruptionRequested", None),
+                solvent=self.solvent,
             )
-            os.close(fd)
-            temp_mol_path = Path(temp_mol_path_str)
-
-            try:
-                # Write a clean V2000 Molfile.
-                # includeStereo=False is CRITICAL to avoid parsing errors for alkenes in this backend.
-                mol_block = Chem.MolToMolBlock(
-                    mol_calc, forceV3000=False, includeStereo=False
-                )
-
-                # Use CRLF and preserve raw RDKit formatting (except for line endings)
-                # Manual padding was found to be detrimental for some readers.
-                refined_block = mol_block.replace("\n", "\r\n")
-                if not refined_block.endswith("\r\n"):
-                    refined_block += "\r\n"
-
-                with open(temp_mol_path, "wb") as f:
-                    f.write(refined_block.encode("ascii", "ignore"))
-
-                # Log for internal debugging (visible in Moledit log)
-                # print(f"NMR Predictor: Running {self.nucleus} calculation. Temp file: {temp_mol_path}")
-
-                classpath = self._build_classpath()
-
-                # Build Java command. Documentation says: java Test myfile.mol [solvent [no3d]]
-                # We omit optional flags to avoid environment-specific "solvent" validation errors.
-                cmd = ["java", "-Xmx512m", "-cp", classpath, "Test", str(temp_mol_path)]
-
-                startupinfo = None
-                if os.name == "nt":
-                    startupinfo = subprocess.STARTUPINFO()
-                    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-
-                # Run Java from the lib directory so it can find its internal resources
-                process = subprocess.run(
-                    cmd,
-                    capture_output=True,
-                    text=True,
-                    check=True,  # Raise CalledProcessError on failure
-                    startupinfo=startupinfo,
-                    cwd=self.plugin_dir / "lib",
-                    timeout=JAVA_TIMEOUT_SEC,
-                )
-
-                # Parse output
-                predictions = self._parse_output(process.stdout, mol_calc)
-
-                if not predictions:
-                    err_msg = (
-                        f"No NMR peaks predicted.\n"
-                        f"Structure might be missing from the database or formatting is incompatible.\n"
-                        f"Raw Output:\n{process.stdout[:1000]}\n"
-                        f"Stderr:\n{process.stderr[:500]}"
-                    )
-                    self.error_signal.emit(err_msg)
-                    return
-
-                # Multiplicity / J estimates (rule-based, see coupling.py).
-                # mol_geometry has the same atom order as mol_calc.
-                coupling.annotate_predictions(mol_geometry, predictions, self.nucleus)
-
-                # Emit success
-                self.finished_signal.emit(
-                    {
-                        "nucleus": self.nucleus,
-                        "data": predictions,
-                        "mol_with_h": mol_calc,
-                    }
-                )
-
-            finally:
-                # Auto-delete temp file as requested by user
-                if temp_mol_path and temp_mol_path.exists():
-                    try:
-                        os.remove(temp_mol_path)
-                    except Exception as _e:
-                        logging.warning("[__init__.py:157] silenced: %s", _e)
-
-        except subprocess.TimeoutExpired:
-            self.error_signal.emit(
-                f"Prediction timed out after {JAVA_TIMEOUT_SEC} s.\n"
-                "The molecule may be too large for the nmrshiftdb2 predictor."
-            )
-        except subprocess.CalledProcessError as e:
-            err_out = e.stderr if e.stderr else e.stdout
-            self.error_signal.emit(
-                f"Java Execution Failed (Code {e.returncode}):\n{err_out}"
-            )
-        except Exception as e:
-            self.error_signal.emit(f"Unexpected Error: {str(e)}")
-        finally:
-            pass
-
-    def _build_classpath(self):
-        """Constructs the Java classpath, ensuring the correct predictor JAR is first."""
-        jar_name = "predictorh.jar" if self.nucleus == "1H" else "predictorc.jar"
-        jar_path = self.plugin_dir / "lib" / jar_name
-        other_jar_name = "predictorc.jar" if self.nucleus == "1H" else "predictorh.jar"
-
-        if not jar_path.exists():
-            raise FileNotFoundError(f"Required JAR not found: {jar_name}")
-
-        jar_files = [jar_path]
-        search_root = self.plugin_dir / "lib"
-        for j in list(search_root.glob("*.jar")):
-            if j.name != other_jar_name and j.name != jar_name:
-                jar_files.append(j)
-
-        abs_jars = []
-        seen = set()
-        for j in jar_files:
-            p = str(j.absolute())
-            if p not in seen:
-                abs_jars.append(p)
-                seen.add(p)
-
-        return os.pathsep.join(abs_jars)
-
-    def _parse_output(self, output, mol):
-        """Parses the standard output from the Java prediction process."""
-        predictions = []
-        # Regex to capture: Index : Min  Mean  Max
-        # Example: "  4:    0.87    4.11    6.81"
-        pattern = r"(\d+)\s*:\s*(\S+)\s+(\S+)\s+(\S+)"
-        matches = list(re.finditer(pattern, output))
-
-        num_atoms = mol.GetNumAtoms()
-        target_symbol = "H" if self.nucleus == "1H" else "C"
-
-        for match in matches:
-            try:
-                idx_java = int(match.group(1)) - 1
-                min_ppm_str = match.group(2)
-                mean_ppm_str = match.group(3)
-                max_ppm_str = match.group(4)
-
-                ppm = float(mean_ppm_str)
-                min_ppm = float(min_ppm_str)
-                max_ppm = float(max_ppm_str)
-                if not all(math.isfinite(value) for value in (min_ppm, ppm, max_ppm)):
-                    continue
-
-                if 0 <= idx_java < num_atoms:
-                    atom = mol.GetAtomWithIdx(idx_java)
-                    atom_symbol = atom.GetSymbol()
-
-                    if atom_symbol == target_symbol and atom.GetIsotope() in (
-                        0,
-                        1 if self.nucleus == "1H" else 13,
-                    ):
-                        # A hydrogen's index can exceed the host molecule's
-                        # atom count (it may keep its H implicit), so remember
-                        # the heavy atom to fall back to when highlighting.
-                        neighbors = atom.GetNeighbors()
-                        parent_idx = neighbors[0].GetIdx() if neighbors else idx_java
-                        predictions.append(
-                            {
-                                "idx": idx_java,
-                                "parent_idx": parent_idx,
-                                "atom": atom_symbol,
-                                "ppm": ppm,
-                                "min": min_ppm,
-                                "max": max_ppm,
-                            }
-                        )
-            except (ValueError, IndexError):
-                continue
-        return predictions
+            coupling.annotate_predictions(result["mol_with_h"], result["data"], self.nucleus)
+            self.finished_signal.emit(result)
+        except database.PredictionCancelled:
+            return
+        except Exception as error:
+            logging.getLogger(__name__).exception("NMR reference prediction failed")
+            self.error_signal.emit(str(error))
 
 
 # --- 2. Result Dialog (GUI) ---
@@ -327,7 +113,7 @@ class ResultDialog(QDialog):
     def __init__(self, parent, result_data, context):
         super().__init__(parent)
         self.setWindowTitle(f"NMR Prediction Result ({result_data['nucleus']})")
-        self.resize(600, 800)
+        self.resize(940, 820)
         self.setWindowModality(Qt.WindowModality.NonModal)
 
         self.context = context
@@ -336,6 +122,9 @@ class ResultDialog(QDialog):
         self.data = result_data["data"]
         self.mol_with_h = result_data["mol_with_h"]
         self.nucleus = result_data["nucleus"]
+        self.solvent = result_data.get("solvent", database.SOLVENT)
+        self.model_note = result_data.get("model_note", "")
+        self.unsupported = result_data.get("unsupported", [])
 
         # Track 3D actors for cleanup
         self._highlight_actors = {}  # atom_idx -> actor
@@ -343,6 +132,11 @@ class ResultDialog(QDialog):
 
         layout = QVBoxLayout()
         self.setLayout(layout)
+
+        supported = len(self.data)
+        total = supported + len(self.unsupported)
+        note = QLabel(f"{self.solvent} · {supported}/{total} nuclei supported")
+        layout.addWidget(note)
 
         # 1. NMR Graph (Matplotlib). Imported here rather than at module level:
         # matplotlib costs ~0.6 s, which every MoleditPy start would otherwise pay.
@@ -479,20 +273,16 @@ class ResultDialog(QDialog):
             )
             self.table.setItem(row, 4, max_item)
 
-            for col, text in ((5, item.get("mult", "")), (6, item.get("j_text", ""))):
+            for col, text in ((5, str(item.get("references", ""))), (6, reference_match(item)),
+                              (7, item.get("mult", "")), (8, item.get("j_text", ""))):
                 cell = QTableWidgetItem(text)
                 cell.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 self.table.setItem(row, col, cell)
 
         layout.addWidget(self.table)
-
-        coupling_note = QLabel(
-            "Mult. / J are rule-based estimates (typical values and a Karplus "
-            "curve), not part of the nmrshiftdb2 prediction."
-        )
-        coupling_note.setWordWrap(True)
-        coupling_note.setStyleSheet("color: gray; font-size: 10px;")
-        layout.addWidget(coupling_note)
+        reference_note = QLabel("Range is not a confidence interval. References count independent molecules.")
+        reference_note.setWordWrap(True)
+        layout.addWidget(reference_note)
 
         # 3. Credits and Status
         bottom_layout = QVBoxLayout()
@@ -532,7 +322,10 @@ class ResultDialog(QDialog):
         # Powered by label - positioned at the very bottom right
         credit_row = QHBoxLayout()
         credit_row.addStretch()
-        credit_label = QLabel("POWERED BY NMRShiftDB2")
+        credit_label = QLabel(
+            'Reference data: nmrshiftdb2 · <a href="' + database.DATA_LICENSE_URL + '">Database License</a>'
+        )
+        credit_label.setOpenExternalLinks(True)
         credit_label.setStyleSheet(
             "color: gray; font-size: 9px; font-style: italic; margin-top: 5px;"
         )
@@ -564,6 +357,13 @@ class ResultDialog(QDialog):
     def plot_spectrum(self):
         """Plot NMR stick spectrum with multiplicity (proportional intensity)."""
         self.figure.clear()
+        self.figure.subplots_adjust(left=0.1, right=0.95, top=0.9, bottom=0.24)
+        self.figure.text(
+            0.01, 0.005,
+            "Contains information from nmrshiftdb2 (www.nmrshiftdb.org).\n"
+            "Available under the nmrshiftdb2 Database License:\n" + database.DATA_LICENSE_URL,
+            fontsize=5, va="bottom",
+        )
         # figure.clear() destroyed both highlight artists; drop the stale
         # references so _update_graph_highlight does not try to remove them
         # from an axes they no longer belong to.
@@ -623,7 +423,7 @@ class ResultDialog(QDialog):
 
         ax.set_xlabel("Chemical Shift (ppm)")
         ax.set_ylabel("Intensity")
-        ax.set_title(f"{self.nucleus} NMR Predicted Spectrum")
+        ax.set_title(f"{self.nucleus} NMR Reference Estimates ({self.solvent})")
         ax.grid(True, axis="x", linestyle=":", alpha=0.5)
 
         # Re-draw the selection marker: changing the range must not look
@@ -769,7 +569,7 @@ class ResultDialog(QDialog):
 
         # Find all atoms with the same PPM (multiplicity)
         # Using a small tolerance for floating point comparison if needed,
-        # but Java center values are usually identical for equivalent atoms.
+        # but reference group values are identical for equivalent atoms.
         matching_atoms = [
             item for item in self.data if abs(item["ppm"] - target_ppm) < 1e-4
         ]
@@ -959,12 +759,9 @@ class ResultDialog(QDialog):
         <h3>NMR Predictor (nmrshiftdb2)</h3>
         <p>This plugin predicts NMR chemical shifts using the following libraries:</p>
         <ul>
-            <li><b>NMRShiftDB2</b>: Java backend for shifts prediction.<br>
-            <a href="https://nmrshiftdb.nmr.uni-koeln.de/">https://nmrshiftdb.nmr.uni-koeln.de/</a></li>
-            
-            <li><b>CDK (Chemistry Development Kit)</b>: Molecular processing in Java.<br>
-            <a href="https://cdk.github.io/">https://cdk.github.io/</a></li>
-            
+            <li><b>NMRShiftDB2</b>: measured reference data; original Python search.<br>
+            <a href="{database.DATA_LICENSE_URL}">nmrshiftdb2 Database License</a></li>
+
             <li><b>RDKit</b>: Molecule handling and 3D coordinate generation.<br>
             <a href="https://www.rdkit.org/">https://www.rdkit.org/</a></li>
             
@@ -977,6 +774,16 @@ class ResultDialog(QDialog):
         <p>Mult. / J are rule-based estimates made by this plugin, not part of
         the nmrshiftdb2 prediction. Only 1H coupling is modeled; isotope
         couplings are omitted.</p>
+        <p>{database.ATTRIBUTION}<br>
+        <a href="{database.DATA_LICENSE_URL}">{database.DATA_LICENSE_NAME}</a></p>
+        <p>{self.model_note}</p>
+        <p>Exact matches use the same stereostructure. Local matches use the stated
+        neighborhood radius in bonds. Reference ranges cover experimental site/group
+        values; reference counts are independent connectivities, not repeated measurements.
+        A single reference or zero range does not establish high accuracy.</p>
+        <p>{self.solvent} estimates; E/Z and tetrahedral configurations matched;
+        enantiomers pooled; attached H grouped.
+        Reference ranges are not confidence intervals.</p>
         <p>Author: {PLUGIN_AUTHOR}<br>Version: {PLUGIN_VERSION}<br>
         Shared coupling module: {coupling.COUPLING_MODULE_VERSION}</p>
         """
@@ -1047,10 +854,18 @@ class ResultDialog(QDialog):
                             f"{item['ppm']:.2f}",
                             f"{item.get('min', 0.0):.2f}",
                             f"{item.get('max', 0.0):.2f}",
+                            item.get("references", ""),
+                            reference_match(item),
                             item.get("mult", ""),
                             item.get("j_text", ""),
                         ]
                     )
+
+                writer.writerow([])
+                writer.writerow(["# Attribution", database.ATTRIBUTION])
+                writer.writerow(["# Data license", database.DATA_LICENSE_URL])
+                writer.writerow(["# Solvent", self.solvent])
+                writer.writerow(["# Model", getattr(self, "model_note", f"{self.solvent} local reference estimates")])
 
             QMessageBox.information(
                 self, "Success", f"Exported successfully to:\n{filename}"
@@ -1110,14 +925,14 @@ def run_prediction(context):
         return
 
     # 1. Select Nucleus
-    nucleus, ok = ask_nucleus(mw)
+    nucleus, solvent, ok = ask_conditions(mw)
     if not ok:
         return
 
     # 2. Setup Progress Dialog
     plugin_dir = Path(__file__).parent
     progress = QProgressDialog(
-        f"Running {nucleus} NMR Prediction (nmrshiftdb2)...", "Cancel", 0, 0, mw
+        f"Searching {nucleus} {solvent} reference data...", "Cancel", 0, 0, mw
     )
     progress.setWindowModality(Qt.WindowModality.WindowModal)
     progress.setMinimumDuration(0)  # Show immediately
@@ -1125,7 +940,7 @@ def run_prediction(context):
 
     # 3. Start Worker Thread
     # We need to keep a reference to the worker to prevent garbage collection
-    worker = PredictorWorker(mol, nucleus, plugin_dir)
+    worker = PredictorWorker(mol, nucleus, plugin_dir, solvent=solvent)
     mw.nmr_worker = worker
 
     def _release():
@@ -1164,21 +979,32 @@ def run_prediction(context):
 
     connect_queued(worker.finished_signal, on_success, mw, (dict,), cleanup=(worker.finished,))
     connect_queued(worker.error_signal, on_error, mw, (str,), cleanup=(worker.finished,))
+    request_interruption = getattr(worker, "requestInterruption", None)
+    if request_interruption is not None:
+        progress.canceled.connect(request_interruption)
     worker.start()
 
 
-def ask_nucleus(parent):
-    """Simple dialog to choose nucleus."""
+def ask_conditions(parent):
+    """Choose nucleus and an explicitly filtered reference solvent."""
     dialog = QDialog(parent)
-    dialog.setWindowTitle("Select Nucleus")
-    dialog.resize(250, 120)
+    dialog.setWindowTitle("NMR Prediction Conditions")
+    dialog.resize(360, 210)
     layout = QVBoxLayout()
 
-    layout.addWidget(QLabel("Select Nucleus type:"))
+    layout.addWidget(QLabel("Nucleus:"))
 
     combo = QComboBox()
     combo.addItems(["1H", "13C"])
     layout.addWidget(combo)
+
+    layout.addWidget(QLabel("Reference solvent:"))
+    solvent_combo = QComboBox()
+    solvent_combo.addItems(list(database.SOLVENTS))
+    layout.addWidget(solvent_combo)
+    note = QLabel("Only the selected solvent is searched. Reference coverage varies by solvent.")
+    note.setWordWrap(True)
+    layout.addWidget(note)
 
     btn = QPushButton("Predict")
     btn.clicked.connect(dialog.accept)
@@ -1187,8 +1013,8 @@ def ask_nucleus(parent):
     dialog.setLayout(layout)
 
     if dialog.exec():
-        return combo.currentText(), True
-    return None, False
+        return combo.currentText(), solvent_combo.currentText(), True
+    return None, None, False
 
 
 # --- 4. Initialization Hook (Plugin Development Manual Section 2) ---
