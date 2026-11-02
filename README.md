@@ -88,6 +88,50 @@ per-radius results are in `data/provenance.json`. The shipped index then uses
 the full accepted subset, including exact-stereostructure references. Coverage of an individual
 molecule may be lower or higher than this table.
 
+## README molecule benchmark
+
+Ethyl (E)-crotonate, `CCOC(=O)/C=C/C`, CDCl3. The replacement returns all **10 1H
+nuclei** and all **6 13C nuclei**, with no unsupported sites in this example.
+The exact reference is experimental SDF record **10015845**. All displayed sites
+come from one independent molecular reference; equal min/max values here do not
+establish zero prediction error. This is an in-database lookup/assignment and
+performance check, not independent accuracy validation.
+
+![Ethyl (E)-crotonate: current 1H results, couplings and reference evidence](img/coupling.png)
+
+| 1H group | Current / ppm | Former README predictor output / ppm | Multiplicity |
+| --- | ---: | ---: | --- |
+| Ethyl CH3 | 1.26 | 1.24 | t |
+| OCH2 | 4.16 | 4.20 | q |
+| Alpha vinyl CH | 5.82 | 5.88 | d |
+| Beta vinyl CH | 6.95 | 7.00 | dq |
+| Alkene CH3 | 1.86 | 1.89 | d |
+
+The former README numbers were predictions, not experimental ground truth. The
+largest difference is 0.06 ppm; it is a change comparison, not a new accuracy score.
+
+![Ethyl (E)-crotonate: current 13C results](img/main.png)
+
+The 13C values are 14.4, 60.0, 166.3, 123.2, 144.2 and 17.9 ppm in the benchmark's
+atom order. The screenshots show actual version 4 result dialogs.
+
+Local benchmark, Python 3.13 / RDKit 2026.03.6 (median milliseconds):
+
+| Operation | 1H / ms | 13C / ms |
+| --- | ---: | ---: |
+| Cold index cache: prediction | 55.89 | 55.40 |
+| Warm cache: prediction | 1.03 | 1.00 |
+| Prediction + coupling, existing 3D | 1.62 | 1.11 |
+| Prediction + coupling, 2D input including embedding | 6.05 | 0.96 |
+
+Warm prediction uses 100 repetitions; coupling uses 20 with 3D and 10 with 2D.
+Cold measurements clear the Python index cache, not the operating system disk
+cache. Imports, application startup and plotting are excluded. Reproduce with:
+
+```sh
+python scripts/benchmark_reference.py --output benchmark.json
+```
+
 ## Data and software licenses
 
 Contains information from [nmrshiftdb2](https://nmrshiftdb.nmr.uni-koeln.de/), made
