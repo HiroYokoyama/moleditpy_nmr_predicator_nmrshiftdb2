@@ -31,10 +31,18 @@ SOLVENTS = {
     "CCl4": "TETRACHLORO-METHANE (CCl4)",
 }
 ATTRIBUTION = (
-    "Contains information from nmrshiftdb2 (www.nmrshiftdb.org), made available "
-    "under the nmrshiftdb2 Database License."
+    "Contains information from nmrshiftdb2 (www.nmrshiftdb.org), which is made "
+    "available here under the nmrshiftdb2 Database License."
 )
 DATA_LICENSE_URL = "https://nmrshiftdb.nmr.uni-koeln.de/nmrshiftdbhtml/nmrshiftdb2datalicense.txt"
+DATA_LICENSE_NAME = "nmrshiftdb2 Database License"
+
+
+def license_metadata():
+    """Notices embedded in the machine-readable derivative index itself."""
+    return {"data_license": DATA_LICENSE_NAME, "data_license_url": DATA_LICENSE_URL,
+            "attribution": ATTRIBUTION,
+            "database_rights": "Database rights retained by the nmrshiftdb2 contributors."}
 
 
 class PredictionCancelled(Exception):

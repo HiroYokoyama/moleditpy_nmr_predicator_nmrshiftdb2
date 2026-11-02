@@ -1,8 +1,8 @@
 """Benchmark the README's ethyl (E)-crotonate without importing the GUI.
 
 Timings exclude application/module startup and plotting. Cache-cold timings clear
-the Python index cache, not the operating system's disk cache. The README v3
-values are predictor output for comparison, not independent experimental truth.
+the Python index cache, not the operating system's disk cache. Exact-reference examples are not independent
+accuracy validation.
 """
 
 import argparse
@@ -30,7 +30,6 @@ def load_module(name):
 db = load_module("database")
 coupling = load_module("coupling")
 SMILES = "CCOC(=O)/C=C/C"
-OLD_README = {0: 1.24, 1: 4.20, 5: 5.88, 6: 7.00, 7: 1.89}
 SITE_NAMES = {0: "ethyl CH3", 1: "OCH2", 3: "C=O", 5: "alpha vinyl CH",
               6: "beta vinyl CH", 7: "alkene CH3"}
 
@@ -80,10 +79,6 @@ def benchmark(repeats=100, coupling_repeats=20):
             if parent not in groups:
                 groups[parent] = dict(row, site=SITE_NAMES.get(parent, str(parent)), equivalent_nuclei=0)
             groups[parent]["equivalent_nuclei"] += 1
-        if nucleus == "1H":
-            for parent, row in groups.items():
-                row["old_readme_prediction_ppm"] = OLD_README[parent]
-                row["difference_vs_old_prediction_ppm"] = row["ppm"] - OLD_README[parent]
         report["nuclei"][nucleus] = {
             "predicted_nuclei": len(result["data"]), "unsupported_ids": result["unsupported"],
             "cold_index_cache_prediction": cold_times, "warm_prediction": warm_times,

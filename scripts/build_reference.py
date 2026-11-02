@@ -176,13 +176,19 @@ def validate(observations):
 
 
 def build(source, output):
-    digest = hashlib.sha256(source.read_bytes()).hexdigest()
+    if not source.is_file():
+        raise ValueError("Source SDF is missing. Run git lfs pull in the repository or pass --source.")
+    content = source.read_bytes()
+    if content.startswith(b"version https://git-lfs.github.com/spec/v1"):
+        raise ValueError("Source is a Git LFS pointer. Run git lfs pull --include=data-source/nmrshiftdb2withsignals.sd.")
+    digest = hashlib.sha256(content).hexdigest()
+    del content
     if digest != SOURCE_SHA256:
         raise ValueError("Source checksum differs from the pinned public export; review before rebuilding.")
     RDLogger.DisableLog("rdApp.warning")
     audit = Counter()
     observations = read_observations(source, audit)
-    metadata = {"encoder": db.ENCODER, "solvents": sorted({o[1] for o in observations}),
+    metadata = {**db.license_metadata(), "encoder": db.ENCODER, "solvents": sorted({o[1] for o in observations}),
                 "source_url": SOURCE_URL, "source_sha256": digest,
                 "rdkit_version": rdBase.rdkitVersion,
                 "minimum_independent_molecules": db.MIN_REFERENCES,
@@ -205,7 +211,7 @@ def build(source, output):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--source", required=True, type=Path)
+    parser.add_argument("--source", type=Path, default=ROOT / "data-source/nmrshiftdb2withsignals.sd")
     parser.add_argument("--output", type=Path, default=PACKAGE / "data")
     args = parser.parse_args()
     build(args.source, args.output)

@@ -11,7 +11,8 @@
     "LICENSE",
     "LICENSING.md",
     "scripts/build_reference.py",
-    "scripts/benchmark_reference.py"
+    "scripts/benchmark_reference.py",
+    "img"
   ],
   "exclude": [
     "*/__pycache__/*",

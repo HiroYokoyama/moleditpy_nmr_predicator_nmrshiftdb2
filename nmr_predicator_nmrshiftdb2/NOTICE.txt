@@ -1,14 +1,13 @@
 NMR Predictor for MoleditPy
 
 The plugin code is first-party GPLv3 code. The runtime uses Python and RDKit.
-No Java predictor, CDK binary, or upstream prediction implementation is bundled.
 
 Reference data: nmrshiftdb2, copyright and database rights retained by its
 contributors. The derivative reference index is distributed under the
 nmrshiftdb2 Database License, separately from the plugin code's GPL.
 
 Contains information from nmrshiftdb2 (www.nmrshiftdb.org), which is made
-available under the nmrshiftdb2 Database License.
+available here under the nmrshiftdb2 Database License.
 License: data/DATABASE-LICENSE.txt
 Source: https://nmrshiftdb.nmr.uni-koeln.de/
 Public license: https://nmrshiftdb.nmr.uni-koeln.de/nmrshiftdbhtml/nmrshiftdb2datalicense.txt

@@ -1,4 +1,5 @@
 {
+  "attribution": "Contains information from nmrshiftdb2 (www.nmrshiftdb.org), which is made available here under the nmrshiftdb2 Database License.",
   "audit": {
     "accepted_solvent:Acetone-d6": 116,
     "accepted_solvent:C6D6": 88,
@@ -21,10 +22,13 @@
   },
   "conditions": "solvent-specific; reported 273-323 K or unreported temperature; E/Z and tetrahedral stereo; enantiomers pooled in achiral solvents; carbon-bound H group medians",
   "connectivity_groups": 3152,
+  "data_license": "nmrshiftdb2 Database License",
+  "data_license_url": "https://nmrshiftdb.nmr.uni-koeln.de/nmrshiftdbhtml/nmrshiftdb2datalicense.txt",
+  "database_rights": "Database rights retained by the nmrshiftdb2 contributors.",
   "encoder": "moleditpy-rdkit-stereo-fragment-v2",
   "entries": 44878,
   "exact_connectivity_minimum_molecules": 1,
-  "index_sha256": "f865f050b463cd85532426d5b626b7923fef5cdc0fba14753c48c04639b826ac",
+  "index_sha256": "2a4d36a0bf41bd5f85a574abd28bd12f14914aeacdbf7d07599afb0cbc963108",
   "minimum_independent_molecules": 3,
   "rdkit_version": "2026.03.6",
   "solvents": [

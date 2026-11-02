@@ -133,16 +133,10 @@ class ResultDialog(QDialog):
         layout = QVBoxLayout()
         self.setLayout(layout)
 
-        if self.model_note:
-            note = QLabel(self.model_note + f" Unsupported nuclei: {len(self.unsupported)}.")
-            note.setWordWrap(True)
-            layout.addWidget(note)
-        attribution = QLabel(
-            database.ATTRIBUTION + ' <a href="' + database.DATA_LICENSE_URL + '">Data license</a>'
-        )
-        attribution.setWordWrap(True)
-        attribution.setOpenExternalLinks(True)
-        layout.addWidget(attribution)
+        supported = len(self.data)
+        total = supported + len(self.unsupported)
+        note = QLabel(f"{self.solvent} · {supported}/{total} nuclei supported")
+        layout.addWidget(note)
 
         # 1. NMR Graph (Matplotlib). Imported here rather than at module level:
         # matplotlib costs ~0.6 s, which every MoleditPy start would otherwise pay.
@@ -286,21 +280,9 @@ class ResultDialog(QDialog):
                 self.table.setItem(row, col, cell)
 
         layout.addWidget(self.table)
-        reference_note = QLabel(
-            "Reference min/max show observed site/group values, not a confidence interval. "
-            "Ref. molecules counts independent connectivities; one molecule may have several "
-            "measurements. Local matches show the neighborhood radius in bonds."
-        )
+        reference_note = QLabel("Range is not a confidence interval. References count independent molecules.")
         reference_note.setWordWrap(True)
         layout.addWidget(reference_note)
-
-        coupling_note = QLabel(
-            "Mult. / J are rule-based estimates (typical values and a Karplus "
-            "curve), not part of the nmrshiftdb2 prediction."
-        )
-        coupling_note.setWordWrap(True)
-        coupling_note.setStyleSheet("color: gray; font-size: 10px;")
-        layout.addWidget(coupling_note)
 
         # 3. Credits and Status
         bottom_layout = QVBoxLayout()
@@ -340,7 +322,10 @@ class ResultDialog(QDialog):
         # Powered by label - positioned at the very bottom right
         credit_row = QHBoxLayout()
         credit_row.addStretch()
-        credit_label = QLabel("POWERED BY NMRShiftDB2")
+        credit_label = QLabel(
+            'Reference data: nmrshiftdb2 · <a href="' + database.DATA_LICENSE_URL + '">Database License</a>'
+        )
+        credit_label.setOpenExternalLinks(True)
         credit_label.setStyleSheet(
             "color: gray; font-size: 9px; font-style: italic; margin-top: 5px;"
         )
@@ -789,7 +774,13 @@ class ResultDialog(QDialog):
         <p>Mult. / J are rule-based estimates made by this plugin, not part of
         the nmrshiftdb2 prediction. Only 1H coupling is modeled; isotope
         couplings are omitted.</p>
-        <p>{database.ATTRIBUTION}</p>
+        <p>{database.ATTRIBUTION}<br>
+        <a href="{database.DATA_LICENSE_URL}">{database.DATA_LICENSE_NAME}</a></p>
+        <p>{self.model_note}</p>
+        <p>Exact matches use the same stereostructure. Local matches use the stated
+        neighborhood radius in bonds. Reference ranges cover experimental site/group
+        values; reference counts are independent connectivities, not repeated measurements.
+        A single reference or zero range does not establish high accuracy.</p>
         <p>{self.solvent} estimates; E/Z and tetrahedral configurations matched;
         enantiomers pooled; attached H grouped.
         Reference ranges are not confidence intervals.</p>

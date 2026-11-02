@@ -1,0 +1,1325 @@
+{
+  "baseline": "40464b4",
+  "cases": [
+    {
+      "name": "Benzene",
+      "smiles": "c1ccccc1",
+      "solvent": "CDCl3",
+      "nucleus": "1H",
+      "data": [
+        {
+          "ppm": 7.36,
+          "min": 7.36,
+          "max": 7.36,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 6,
+          "parent_idx": 0,
+          "atom": "H"
+        },
+        {
+          "ppm": 7.36,
+          "min": 7.36,
+          "max": 7.36,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 7,
+          "parent_idx": 1,
+          "atom": "H"
+        },
+        {
+          "ppm": 7.36,
+          "min": 7.36,
+          "max": 7.36,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 8,
+          "parent_idx": 2,
+          "atom": "H"
+        },
+        {
+          "ppm": 7.36,
+          "min": 7.36,
+          "max": 7.36,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 9,
+          "parent_idx": 3,
+          "atom": "H"
+        },
+        {
+          "ppm": 7.36,
+          "min": 7.36,
+          "max": 7.36,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 10,
+          "parent_idx": 4,
+          "atom": "H"
+        },
+        {
+          "ppm": 7.36,
+          "min": 7.36,
+          "max": 7.36,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 11,
+          "parent_idx": 5,
+          "atom": "H"
+        }
+      ],
+      "unsupported": []
+    },
+    {
+      "name": "Benzene",
+      "smiles": "c1ccccc1",
+      "solvent": "CDCl3",
+      "nucleus": "13C",
+      "data": [
+        {
+          "ppm": 128.5,
+          "min": 128.5,
+          "max": 128.5,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 0,
+          "parent_idx": 0,
+          "atom": "C"
+        },
+        {
+          "ppm": 128.5,
+          "min": 128.5,
+          "max": 128.5,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 1,
+          "parent_idx": 1,
+          "atom": "C"
+        },
+        {
+          "ppm": 128.5,
+          "min": 128.5,
+          "max": 128.5,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 2,
+          "parent_idx": 2,
+          "atom": "C"
+        },
+        {
+          "ppm": 128.5,
+          "min": 128.5,
+          "max": 128.5,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 3,
+          "parent_idx": 3,
+          "atom": "C"
+        },
+        {
+          "ppm": 128.5,
+          "min": 128.5,
+          "max": 128.5,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 4,
+          "parent_idx": 4,
+          "atom": "C"
+        },
+        {
+          "ppm": 128.5,
+          "min": 128.5,
+          "max": 128.5,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 5,
+          "parent_idx": 5,
+          "atom": "C"
+        }
+      ],
+      "unsupported": []
+    },
+    {
+      "name": "Toluene",
+      "smiles": "Cc1ccccc1",
+      "solvent": "CDCl3",
+      "nucleus": "1H",
+      "data": [
+        {
+          "ppm": 2.3125,
+          "min": 1.52,
+          "max": 2.442,
+          "references": 10,
+          "radius": 3,
+          "method": "local_environment",
+          "idx": 7,
+          "parent_idx": 0,
+          "atom": "H"
+        },
+        {
+          "ppm": 2.3125,
+          "min": 1.52,
+          "max": 2.442,
+          "references": 10,
+          "radius": 3,
+          "method": "local_environment",
+          "idx": 8,
+          "parent_idx": 0,
+          "atom": "H"
+        },
+        {
+          "ppm": 2.3125,
+          "min": 1.52,
+          "max": 2.442,
+          "references": 10,
+          "radius": 3,
+          "method": "local_environment",
+          "idx": 9,
+          "parent_idx": 0,
+          "atom": "H"
+        },
+        {
+          "ppm": 7.279,
+          "min": 6.979,
+          "max": 7.446,
+          "references": 4,
+          "radius": 2,
+          "method": "local_environment",
+          "idx": 10,
+          "parent_idx": 2,
+          "atom": "H"
+        },
+        {
+          "ppm": 7.32,
+          "min": 6.73646,
+          "max": 8.25,
+          "references": 118,
+          "radius": 2,
+          "method": "local_environment",
+          "idx": 11,
+          "parent_idx": 3,
+          "atom": "H"
+        },
+        {
+          "ppm": 7.32,
+          "min": 4.68,
+          "max": 10.57,
+          "references": 70,
+          "radius": 3,
+          "method": "local_environment",
+          "idx": 12,
+          "parent_idx": 4,
+          "atom": "H"
+        },
+        {
+          "ppm": 7.32,
+          "min": 6.73646,
+          "max": 8.25,
+          "references": 118,
+          "radius": 2,
+          "method": "local_environment",
+          "idx": 13,
+          "parent_idx": 5,
+          "atom": "H"
+        },
+        {
+          "ppm": 7.279,
+          "min": 6.979,
+          "max": 7.446,
+          "references": 4,
+          "radius": 2,
+          "method": "local_environment",
+          "idx": 14,
+          "parent_idx": 6,
+          "atom": "H"
+        }
+      ],
+      "unsupported": []
+    },
+    {
+      "name": "Toluene",
+      "smiles": "Cc1ccccc1",
+      "solvent": "CDCl3",
+      "nucleus": "13C",
+      "data": [
+        {
+          "ppm": 21.3,
+          "min": 21.3,
+          "max": 21.3,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 0,
+          "parent_idx": 0,
+          "atom": "C"
+        },
+        {
+          "ppm": 137.8,
+          "min": 137.8,
+          "max": 137.8,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 1,
+          "parent_idx": 1,
+          "atom": "C"
+        },
+        {
+          "ppm": 128.4,
+          "min": 128.4,
+          "max": 128.4,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 2,
+          "parent_idx": 2,
+          "atom": "C"
+        },
+        {
+          "ppm": 129.2,
+          "min": 129.2,
+          "max": 129.2,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 3,
+          "parent_idx": 3,
+          "atom": "C"
+        },
+        {
+          "ppm": 125.5,
+          "min": 125.5,
+          "max": 125.5,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 4,
+          "parent_idx": 4,
+          "atom": "C"
+        },
+        {
+          "ppm": 129.2,
+          "min": 129.2,
+          "max": 129.2,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 5,
+          "parent_idx": 5,
+          "atom": "C"
+        },
+        {
+          "ppm": 128.4,
+          "min": 128.4,
+          "max": 128.4,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 6,
+          "parent_idx": 6,
+          "atom": "C"
+        }
+      ],
+      "unsupported": []
+    },
+    {
+      "name": "Ethyl acetate",
+      "smiles": "CC(=O)OCC",
+      "solvent": "CDCl3",
+      "nucleus": "1H",
+      "data": [
+        {
+          "ppm": 2.095,
+          "min": 2.05,
+          "max": 2.1,
+          "references": 4,
+          "radius": 3,
+          "method": "local_environment",
+          "idx": 6,
+          "parent_idx": 0,
+          "atom": "H"
+        },
+        {
+          "ppm": 2.095,
+          "min": 2.05,
+          "max": 2.1,
+          "references": 4,
+          "radius": 3,
+          "method": "local_environment",
+          "idx": 7,
+          "parent_idx": 0,
+          "atom": "H"
+        },
+        {
+          "ppm": 2.095,
+          "min": 2.05,
+          "max": 2.1,
+          "references": 4,
+          "radius": 3,
+          "method": "local_environment",
+          "idx": 8,
+          "parent_idx": 0,
+          "atom": "H"
+        },
+        {
+          "ppm": 4.16,
+          "min": 2.735,
+          "max": 4.45,
+          "references": 17,
+          "radius": 2,
+          "method": "local_environment",
+          "idx": 9,
+          "parent_idx": 4,
+          "atom": "H"
+        },
+        {
+          "ppm": 4.16,
+          "min": 2.735,
+          "max": 4.45,
+          "references": 17,
+          "radius": 2,
+          "method": "local_environment",
+          "idx": 10,
+          "parent_idx": 4,
+          "atom": "H"
+        },
+        {
+          "ppm": 1.28,
+          "min": 1.17,
+          "max": 1.4,
+          "references": 17,
+          "radius": 3,
+          "method": "local_environment",
+          "idx": 11,
+          "parent_idx": 5,
+          "atom": "H"
+        },
+        {
+          "ppm": 1.28,
+          "min": 1.17,
+          "max": 1.4,
+          "references": 17,
+          "radius": 3,
+          "method": "local_environment",
+          "idx": 12,
+          "parent_idx": 5,
+          "atom": "H"
+        },
+        {
+          "ppm": 1.28,
+          "min": 1.17,
+          "max": 1.4,
+          "references": 17,
+          "radius": 3,
+          "method": "local_environment",
+          "idx": 13,
+          "parent_idx": 5,
+          "atom": "H"
+        }
+      ],
+      "unsupported": []
+    },
+    {
+      "name": "Ethyl acetate",
+      "smiles": "CC(=O)OCC",
+      "solvent": "CDCl3",
+      "nucleus": "13C",
+      "data": [
+        {
+          "ppm": 20.9,
+          "min": 20.9,
+          "max": 20.9,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 0,
+          "parent_idx": 0,
+          "atom": "C"
+        },
+        {
+          "ppm": 170.7,
+          "min": 170.7,
+          "max": 170.7,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 1,
+          "parent_idx": 1,
+          "atom": "C"
+        },
+        {
+          "ppm": 60.4,
+          "min": 60.4,
+          "max": 60.4,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 4,
+          "parent_idx": 4,
+          "atom": "C"
+        },
+        {
+          "ppm": 14.4,
+          "min": 14.4,
+          "max": 14.4,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 5,
+          "parent_idx": 5,
+          "atom": "C"
+        }
+      ],
+      "unsupported": []
+    },
+    {
+      "name": "Cyclohexane",
+      "smiles": "C1CCCCC1",
+      "solvent": "CDCl3",
+      "nucleus": "1H",
+      "data": [
+        {
+          "ppm": 1.43,
+          "min": 1.427,
+          "max": 1.45,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 6,
+          "parent_idx": 0,
+          "atom": "H"
+        },
+        {
+          "ppm": 1.43,
+          "min": 1.427,
+          "max": 1.45,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 7,
+          "parent_idx": 0,
+          "atom": "H"
+        },
+        {
+          "ppm": 1.43,
+          "min": 1.427,
+          "max": 1.45,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 8,
+          "parent_idx": 1,
+          "atom": "H"
+        },
+        {
+          "ppm": 1.43,
+          "min": 1.427,
+          "max": 1.45,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 9,
+          "parent_idx": 1,
+          "atom": "H"
+        },
+        {
+          "ppm": 1.43,
+          "min": 1.427,
+          "max": 1.45,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 10,
+          "parent_idx": 2,
+          "atom": "H"
+        },
+        {
+          "ppm": 1.43,
+          "min": 1.427,
+          "max": 1.45,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 11,
+          "parent_idx": 2,
+          "atom": "H"
+        },
+        {
+          "ppm": 1.43,
+          "min": 1.427,
+          "max": 1.45,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 12,
+          "parent_idx": 3,
+          "atom": "H"
+        },
+        {
+          "ppm": 1.43,
+          "min": 1.427,
+          "max": 1.45,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 13,
+          "parent_idx": 3,
+          "atom": "H"
+        },
+        {
+          "ppm": 1.43,
+          "min": 1.427,
+          "max": 1.45,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 14,
+          "parent_idx": 4,
+          "atom": "H"
+        },
+        {
+          "ppm": 1.43,
+          "min": 1.427,
+          "max": 1.45,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 15,
+          "parent_idx": 4,
+          "atom": "H"
+        },
+        {
+          "ppm": 1.43,
+          "min": 1.427,
+          "max": 1.45,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 16,
+          "parent_idx": 5,
+          "atom": "H"
+        },
+        {
+          "ppm": 1.43,
+          "min": 1.427,
+          "max": 1.45,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 17,
+          "parent_idx": 5,
+          "atom": "H"
+        }
+      ],
+      "unsupported": []
+    },
+    {
+      "name": "Cyclohexane",
+      "smiles": "C1CCCCC1",
+      "solvent": "CDCl3",
+      "nucleus": "13C",
+      "data": [
+        {
+          "ppm": 29.596,
+          "min": 29.596,
+          "max": 29.596,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 0,
+          "parent_idx": 0,
+          "atom": "C"
+        },
+        {
+          "ppm": 29.596,
+          "min": 29.596,
+          "max": 29.596,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 1,
+          "parent_idx": 1,
+          "atom": "C"
+        },
+        {
+          "ppm": 29.596,
+          "min": 29.596,
+          "max": 29.596,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 2,
+          "parent_idx": 2,
+          "atom": "C"
+        },
+        {
+          "ppm": 29.596,
+          "min": 29.596,
+          "max": 29.596,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 3,
+          "parent_idx": 3,
+          "atom": "C"
+        },
+        {
+          "ppm": 29.596,
+          "min": 29.596,
+          "max": 29.596,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 4,
+          "parent_idx": 4,
+          "atom": "C"
+        },
+        {
+          "ppm": 29.596,
+          "min": 29.596,
+          "max": 29.596,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 5,
+          "parent_idx": 5,
+          "atom": "C"
+        }
+      ],
+      "unsupported": []
+    },
+    {
+      "name": "Ethyl E-crotonate",
+      "smiles": "CCOC(=O)/C=C/C",
+      "solvent": "CDCl3",
+      "nucleus": "1H",
+      "data": [
+        {
+          "ppm": 1.26,
+          "min": 1.26,
+          "max": 1.26,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 8,
+          "parent_idx": 0,
+          "atom": "H"
+        },
+        {
+          "ppm": 1.26,
+          "min": 1.26,
+          "max": 1.26,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 9,
+          "parent_idx": 0,
+          "atom": "H"
+        },
+        {
+          "ppm": 1.26,
+          "min": 1.26,
+          "max": 1.26,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 10,
+          "parent_idx": 0,
+          "atom": "H"
+        },
+        {
+          "ppm": 4.16,
+          "min": 4.16,
+          "max": 4.16,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 11,
+          "parent_idx": 1,
+          "atom": "H"
+        },
+        {
+          "ppm": 4.16,
+          "min": 4.16,
+          "max": 4.16,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 12,
+          "parent_idx": 1,
+          "atom": "H"
+        },
+        {
+          "ppm": 5.82,
+          "min": 5.82,
+          "max": 5.82,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 13,
+          "parent_idx": 5,
+          "atom": "H"
+        },
+        {
+          "ppm": 6.95,
+          "min": 6.95,
+          "max": 6.95,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 14,
+          "parent_idx": 6,
+          "atom": "H"
+        },
+        {
+          "ppm": 1.86,
+          "min": 1.86,
+          "max": 1.86,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 15,
+          "parent_idx": 7,
+          "atom": "H"
+        },
+        {
+          "ppm": 1.86,
+          "min": 1.86,
+          "max": 1.86,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 16,
+          "parent_idx": 7,
+          "atom": "H"
+        },
+        {
+          "ppm": 1.86,
+          "min": 1.86,
+          "max": 1.86,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 17,
+          "parent_idx": 7,
+          "atom": "H"
+        }
+      ],
+      "unsupported": []
+    },
+    {
+      "name": "Ethyl E-crotonate",
+      "smiles": "CCOC(=O)/C=C/C",
+      "solvent": "CDCl3",
+      "nucleus": "13C",
+      "data": [
+        {
+          "ppm": 14.4,
+          "min": 14.4,
+          "max": 14.4,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 0,
+          "parent_idx": 0,
+          "atom": "C"
+        },
+        {
+          "ppm": 60.0,
+          "min": 60.0,
+          "max": 60.0,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 1,
+          "parent_idx": 1,
+          "atom": "C"
+        },
+        {
+          "ppm": 166.3,
+          "min": 166.3,
+          "max": 166.3,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 3,
+          "parent_idx": 3,
+          "atom": "C"
+        },
+        {
+          "ppm": 123.2,
+          "min": 123.2,
+          "max": 123.2,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 5,
+          "parent_idx": 5,
+          "atom": "C"
+        },
+        {
+          "ppm": 144.2,
+          "min": 144.2,
+          "max": 144.2,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 6,
+          "parent_idx": 6,
+          "atom": "C"
+        },
+        {
+          "ppm": 17.9,
+          "min": 17.9,
+          "max": 17.9,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 7,
+          "parent_idx": 7,
+          "atom": "C"
+        }
+      ],
+      "unsupported": []
+    },
+    {
+      "name": "Ethyl Z-crotonate",
+      "smiles": "CCOC(=O)/C=C\\C",
+      "solvent": "CDCl3",
+      "nucleus": "1H",
+      "data": [
+        {
+          "ppm": 1.28,
+          "min": 1.17,
+          "max": 1.4,
+          "references": 17,
+          "radius": 3,
+          "method": "local_environment",
+          "idx": 8,
+          "parent_idx": 0,
+          "atom": "H"
+        },
+        {
+          "ppm": 1.28,
+          "min": 1.17,
+          "max": 1.4,
+          "references": 17,
+          "radius": 3,
+          "method": "local_environment",
+          "idx": 9,
+          "parent_idx": 0,
+          "atom": "H"
+        },
+        {
+          "ppm": 1.28,
+          "min": 1.17,
+          "max": 1.4,
+          "references": 17,
+          "radius": 3,
+          "method": "local_environment",
+          "idx": 10,
+          "parent_idx": 0,
+          "atom": "H"
+        },
+        {
+          "ppm": 4.16,
+          "min": 2.735,
+          "max": 4.45,
+          "references": 17,
+          "radius": 2,
+          "method": "local_environment",
+          "idx": 11,
+          "parent_idx": 1,
+          "atom": "H"
+        },
+        {
+          "ppm": 4.16,
+          "min": 2.735,
+          "max": 4.45,
+          "references": 17,
+          "radius": 2,
+          "method": "local_environment",
+          "idx": 12,
+          "parent_idx": 1,
+          "atom": "H"
+        }
+      ],
+      "unsupported": [
+        13,
+        14,
+        15,
+        16,
+        17
+      ]
+    },
+    {
+      "name": "Ethyl Z-crotonate",
+      "smiles": "CCOC(=O)/C=C\\C",
+      "solvent": "CDCl3",
+      "nucleus": "13C",
+      "data": [
+        {
+          "ppm": 14.35,
+          "min": 14.15,
+          "max": 14.7,
+          "references": 10,
+          "radius": 4,
+          "method": "local_environment",
+          "idx": 0,
+          "parent_idx": 0,
+          "atom": "C"
+        },
+        {
+          "ppm": 60.2,
+          "min": 58.6,
+          "max": 61.45,
+          "references": 10,
+          "radius": 3,
+          "method": "local_environment",
+          "idx": 1,
+          "parent_idx": 1,
+          "atom": "C"
+        }
+      ],
+      "unsupported": [
+        3,
+        5,
+        6,
+        7
+      ]
+    },
+    {
+      "name": "Ethanol",
+      "smiles": "CCO",
+      "solvent": "CDCl3",
+      "nucleus": "1H",
+      "error": "No supported sites"
+    },
+    {
+      "name": "Ethanol",
+      "smiles": "CCO",
+      "solvent": "CDCl3",
+      "nucleus": "13C",
+      "error": "No supported sites"
+    },
+    {
+      "name": "Ethanol",
+      "smiles": "CCO",
+      "solvent": "D2O",
+      "nucleus": "1H",
+      "data": [
+        {
+          "ppm": 1.17,
+          "min": 1.17,
+          "max": 1.17,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 3,
+          "parent_idx": 0,
+          "atom": "H"
+        },
+        {
+          "ppm": 1.17,
+          "min": 1.17,
+          "max": 1.17,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 4,
+          "parent_idx": 0,
+          "atom": "H"
+        },
+        {
+          "ppm": 1.17,
+          "min": 1.17,
+          "max": 1.17,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 5,
+          "parent_idx": 0,
+          "atom": "H"
+        },
+        {
+          "ppm": 3.641,
+          "min": 3.641,
+          "max": 3.641,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 6,
+          "parent_idx": 1,
+          "atom": "H"
+        },
+        {
+          "ppm": 3.641,
+          "min": 3.641,
+          "max": 3.641,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 7,
+          "parent_idx": 1,
+          "atom": "H"
+        }
+      ],
+      "unsupported": [
+        8
+      ]
+    },
+    {
+      "name": "Ethanol",
+      "smiles": "CCO",
+      "solvent": "D2O",
+      "nucleus": "13C",
+      "data": [
+        {
+          "ppm": 19.49,
+          "min": 19.49,
+          "max": 19.49,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 0,
+          "parent_idx": 0,
+          "atom": "C"
+        },
+        {
+          "ppm": 60.13,
+          "min": 60.13,
+          "max": 60.13,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 1,
+          "parent_idx": 1,
+          "atom": "C"
+        }
+      ],
+      "unsupported": []
+    },
+    {
+      "name": "Lactic acid",
+      "smiles": "C[C@H](O)C(=O)O",
+      "solvent": "D2O",
+      "nucleus": "1H",
+      "error": "No supported sites"
+    },
+    {
+      "name": "Lactic acid",
+      "smiles": "C[C@H](O)C(=O)O",
+      "solvent": "D2O",
+      "nucleus": "13C",
+      "error": "No supported sites"
+    },
+    {
+      "name": "Aspirin",
+      "smiles": "CC(=O)Oc1ccccc1C(=O)O",
+      "solvent": "CDCl3",
+      "nucleus": "1H",
+      "data": [
+        {
+          "ppm": 2.29,
+          "min": 2.29,
+          "max": 2.29,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 13,
+          "parent_idx": 0,
+          "atom": "H"
+        },
+        {
+          "ppm": 2.29,
+          "min": 2.29,
+          "max": 2.29,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 14,
+          "parent_idx": 0,
+          "atom": "H"
+        },
+        {
+          "ppm": 2.29,
+          "min": 2.29,
+          "max": 2.29,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 15,
+          "parent_idx": 0,
+          "atom": "H"
+        },
+        {
+          "ppm": 7.53,
+          "min": 7.53,
+          "max": 7.53,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 16,
+          "parent_idx": 5,
+          "atom": "H"
+        },
+        {
+          "ppm": 8.25,
+          "min": 8.25,
+          "max": 8.25,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 17,
+          "parent_idx": 6,
+          "atom": "H"
+        },
+        {
+          "ppm": 7.3,
+          "min": 7.3,
+          "max": 7.3,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 18,
+          "parent_idx": 7,
+          "atom": "H"
+        },
+        {
+          "ppm": 8.03,
+          "min": 8.03,
+          "max": 8.03,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 19,
+          "parent_idx": 8,
+          "atom": "H"
+        }
+      ],
+      "unsupported": [
+        20
+      ]
+    },
+    {
+      "name": "Aspirin",
+      "smiles": "CC(=O)Oc1ccccc1C(=O)O",
+      "solvent": "CDCl3",
+      "nucleus": "13C",
+      "data": [
+        {
+          "ppm": 21.1,
+          "min": 21.1,
+          "max": 21.1,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 0,
+          "parent_idx": 0,
+          "atom": "C"
+        },
+        {
+          "ppm": 170.0,
+          "min": 170.0,
+          "max": 170.0,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 1,
+          "parent_idx": 1,
+          "atom": "C"
+        },
+        {
+          "ppm": 150.9,
+          "min": 150.9,
+          "max": 150.9,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 4,
+          "parent_idx": 4,
+          "atom": "C"
+        },
+        {
+          "ppm": 123.7,
+          "min": 123.7,
+          "max": 123.7,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 5,
+          "parent_idx": 5,
+          "atom": "C"
+        },
+        {
+          "ppm": 134.0,
+          "min": 134.0,
+          "max": 134.0,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 6,
+          "parent_idx": 6,
+          "atom": "C"
+        },
+        {
+          "ppm": 126.0,
+          "min": 126.0,
+          "max": 126.0,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 7,
+          "parent_idx": 7,
+          "atom": "C"
+        },
+        {
+          "ppm": 132.2,
+          "min": 132.2,
+          "max": 132.2,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 8,
+          "parent_idx": 8,
+          "atom": "C"
+        },
+        {
+          "ppm": 123.4,
+          "min": 123.4,
+          "max": 123.4,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 9,
+          "parent_idx": 9,
+          "atom": "C"
+        },
+        {
+          "ppm": 167.3,
+          "min": 167.3,
+          "max": 167.3,
+          "references": 1,
+          "radius": 0,
+          "method": "exact_stereostructure",
+          "idx": 10,
+          "parent_idx": 10,
+          "atom": "C"
+        }
+      ],
+      "unsupported": []
+    }
+  ]
+}

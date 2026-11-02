@@ -232,7 +232,10 @@ def test_plugin_zip_includes_regeneration_source_and_no_binaries(tmp_path):
     for name in config["include"]:
         destination = staged / name
         destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(ROOT / name, destination)
+        if (ROOT / name).is_dir():
+            shutil.copytree(ROOT / name, destination)
+        else:
+            shutil.copy2(ROOT / name, destination)
     archive = release.package(staged, config, "4.0.0")
     with ZipFile(archive) as zipped:
         names = zipped.namelist()
@@ -241,6 +244,8 @@ def test_plugin_zip_includes_regeneration_source_and_no_binaries(tmp_path):
                      "data/reference.json.gz", "data/provenance.json", "scripts/build_reference.py"]:
             assert prefix + name in names
         assert not any(name.endswith((".jar", ".class", ".pyc")) for name in names)
+        assert not any("data-source/" in name or name.endswith(".sd") for name in names)
+        assert prefix + "img/coupling.png" in names
         zipped.extractall(tmp_path / "installed")
     # Verify the included regeneration script also resolves the standalone
     # backend when run from the installed package, without importing the GUI.
@@ -250,3 +255,17 @@ def test_plugin_zip_includes_regeneration_source_and_no_binaries(tmp_path):
         capture_output=True, text=True, check=False, timeout=30,
     )
     assert result.returncode == 0, result.stderr
+
+
+def test_source_lfs_pointer_has_an_actionable_error(tmp_path):
+    source = tmp_path / "source.sd"
+    source.write_text("version https://git-lfs.github.com/spec/v1\noid sha256:abc\nsize 42\n")
+    with pytest.raises(ValueError, match="git lfs pull"):
+        builder.build(source, tmp_path / "data")
+
+
+def test_derivative_index_embeds_its_data_license():
+    payload = db.load_index(ROOT / "nmr_predicator_nmrshiftdb2/data/reference.json.gz")
+    assert payload["data_license"] == db.DATA_LICENSE_NAME
+    assert payload["data_license_url"] == db.DATA_LICENSE_URL
+    assert payload["attribution"] == db.ATTRIBUTION

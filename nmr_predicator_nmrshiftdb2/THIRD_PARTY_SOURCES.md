@@ -1,6 +1,6 @@
 # Data sources and runtime dependencies
 
-Version 4 uses Python/RDKit database search and includes an experimental
+The runtime uses Python/RDKit database search and includes an experimental
 reference index generated from the public SDF export.
 
 ## Public source data
@@ -18,17 +18,18 @@ configuration and E/Z bond descriptors. Enantiomers share references in the
 supported achiral solvents; unspecified stereo remains separate. This is not a CDK HOSE table.
 `data/provenance.json` records filtering, aggregation and held-out validation.
 The full machine-readable derivative index and its transformation source are
-provided. No original full SDF is needed at runtime.
+provided. The pinned full SDF is also stored in `data-source/` through Git LFS. It is not needed at runtime.
 
 ## Rebuild
 
 From a repository checkout:
 
 ```sh
-python scripts/build_reference.py --source /path/to/nmrshiftdb2withsignals.sd
+git lfs pull --include="data-source/nmrshiftdb2withsignals.sd"
+python scripts/build_reference.py
 ```
 
-The same command works inside an extracted plugin package. A source checksum
+Inside an extracted plugin package, supply a local SDF using `--source /path/to/source.sd`. A source checksum
 mismatch is rejected; a changed export requires an explicit data review and a
 new provenance record. The builder imports only the backend module, without Qt.
 
@@ -41,5 +42,4 @@ available for alteration. The functional plugin remains GPLv3, satisfying the
 data license's section 4.5 requirement for an OSI-approved software license.
 
 RDKit, PySide6/Qt, NumPy, Matplotlib and PyVista retain their own terms. No
-third-party library binaries are bundled. Older tags retain their original
-contents and terms; their predictor JAR notices are not statements about v4.
+third-party library binaries are bundled.

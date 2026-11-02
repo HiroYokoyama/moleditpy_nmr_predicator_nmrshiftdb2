@@ -3,8 +3,8 @@
 [![CI](https://github.com/HiroYokoyama/moleditpy_nmr_predicator_nmrshiftdb2/actions/workflows/test.yml/badge.svg)](https://github.com/HiroYokoyama/moleditpy_nmr_predicator_nmrshiftdb2/actions/workflows/test.yml)
 
 Offline 1H/13C chemical-shift estimates from **nmrshiftdb2 experimental data**,
-using an original **Python + RDKit** reference search. Version 4 needs no Java,
-CDK, predictor JARs, network connection or first-run training.
+using an original **Python + RDKit** reference search. The ZIP includes prepared reference data and runs offline; no Java runtime
+or first-run data generation is required.
 
 ## Install and use
 
@@ -56,9 +56,8 @@ reference data and its license.
 - Multiplicity and J remain separate rule-based approximations in `coupling.py`,
   not experimental fits or output of this shift estimator.
 
-This is a reference-search replacement, not a claim of numerical equivalence to
-the old Java predictor. It is intended for exploratory interpretation, not
-unqualified peak assignments.
+Reference-search estimates support exploratory interpretation. Treat unsupported
+sites and the reported reference ranges/counts explicitly when assigning peaks.
 
 ## Validation
 
@@ -88,6 +87,34 @@ per-radius results are in `data/provenance.json`. The shipped index then uses
 the full accepted subset, including exact-stereostructure references. Coverage of an individual
 molecule may be lower or higher than this table.
 
+## Regression checks
+
+The release checks cover complete, partial and absent references, including an
+aromatic, saturated ring, ester, alkene, chiral acid and different solvents.
+Across the 20 molecule/nucleus combinations below, shifts, reference ranges,
+reference counts, atom assignments and unsupported-site lists match the verified
+v4 regression baseline. The input molecule remains unchanged. Automated tests
+also enforce these coverage and assignment cases.
+
+| Molecule | Solvent | Supported 1H / total | Supported 13C / total |
+| --- | --- | ---: | ---: |
+| Benzene | CDCl3 | 6/6 | 6/6 |
+| Toluene | CDCl3 | 8/8 | 7/7 |
+| Ethyl acetate | CDCl3 | 8/8 | 4/4 |
+| Cyclohexane | CDCl3 | 12/12 | 6/6 |
+| Ethyl E-crotonate | CDCl3 | 10/10 | 6/6 |
+| Ethyl Z-crotonate | CDCl3 | 5/10 | 2/6 |
+| Ethanol | CDCl3 | 0/6 | 0/2 |
+| Ethanol | D2O | 5/6 | 2/2 |
+| Lactic acid | D2O | 0/6 | 0/3 |
+| Aspirin | CDCl3 | 7/8 | 9/9 |
+
+This checks functional stability and reference coverage, not independent
+prediction accuracy. Zero support returns an explicit reference-unavailable
+message; partial support leaves missing sites unsupported. Exchangeable protons
+remain outside the model, and a selected solvent is never supplemented from
+another solvent's data.
+
 ## README molecule benchmark
 
 Ethyl (E)-crotonate, `CCOC(=O)/C=C/C`, CDCl3. The replacement returns all **10 1H
@@ -99,16 +126,13 @@ performance check, not independent accuracy validation.
 
 ![Ethyl (E)-crotonate: current 1H results, couplings and reference evidence](img/coupling.png)
 
-| 1H group | Current / ppm | Former README predictor output / ppm | Multiplicity |
-| --- | ---: | ---: | --- |
-| Ethyl CH3 | 1.26 | 1.24 | t |
-| OCH2 | 4.16 | 4.20 | q |
-| Alpha vinyl CH | 5.82 | 5.88 | d |
-| Beta vinyl CH | 6.95 | 7.00 | dq |
-| Alkene CH3 | 1.86 | 1.89 | d |
-
-The former README numbers were predictions, not experimental ground truth. The
-largest difference is 0.06 ppm; it is a change comparison, not a new accuracy score.
+| 1H group | Shift / ppm | Reference range / ppm | Independent molecules | Mult. |
+| --- | ---: | --- | ---: | --- |
+| Ethyl CH3 | 1.26 | 1.26–1.26 | 1 | t |
+| OCH2 | 4.16 | 4.16–4.16 | 1 | q |
+| Alpha vinyl CH | 5.82 | 5.82–5.82 | 1 | d |
+| Beta vinyl CH | 6.95 | 6.95–6.95 | 1 | dq |
+| Alkene CH3 | 1.86 | 1.86–1.86 | 1 | d |
 
 ![Ethyl (E)-crotonate: current 13C results](img/main.png)
 
@@ -147,11 +171,12 @@ The public data export is transformed directly using the included generation scr
 ```sh
 python -m pip install pytest rdkit
 python -m pytest tests/ -q
-python scripts/build_reference.py --source /path/to/nmrshiftdb2withsignals.sd
+git lfs pull --include="data-source/nmrshiftdb2withsignals.sd"
+python scripts/build_reference.py
 python scripts/release_common.py package --version 4.0.0
 ```
 
-Download the assigned SDF from the official data page linked in
-`THIRD_PARTY_SOURCES.md`. The builder checks its pinned SHA-256 before reading
+The original SDF snapshot is in `data-source/` through Git LFS; it is excluded
+from the runtime ZIP. The official source URL is in `THIRD_PARTY_SOURCES.md`. The builder checks its pinned SHA-256 before reading
 the data. The transformation, filtering and aggregation are fully included in
 the repository and ZIP. Runtime prediction never downloads or rebuilds data.
