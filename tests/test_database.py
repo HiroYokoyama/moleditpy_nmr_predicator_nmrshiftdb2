@@ -245,7 +245,7 @@ def test_plugin_zip_includes_regeneration_source_and_no_binaries(tmp_path):
             assert prefix + name in names
         assert not any(name.endswith((".jar", ".class", ".pyc")) for name in names)
         assert not any("data-source/" in name or name.endswith(".sd") for name in names)
-        assert prefix + "img/coupling.png" in names
+        assert not any("/img/" in name for name in names)
         zipped.extractall(tmp_path / "installed")
     # Verify the included regeneration script also resolves the standalone
     # backend when run from the installed package, without importing the GUI.
