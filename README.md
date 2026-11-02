@@ -1,85 +1,87 @@
-# NMR Prediction Plugin for Moleditpy
+# NMR Prediction Plugin for MoleditPy
 
 [![CI](https://github.com/HiroYokoyama/moleditpy_nmr_predicator_nmrshiftdb2/actions/workflows/test.yml/badge.svg)](https://github.com/HiroYokoyama/moleditpy_nmr_predicator_nmrshiftdb2/actions/workflows/test.yml)
-![Test Coverage](https://img.shields.io/badge/coverage->90%25-green)
-[![GitHub tag](https://img.shields.io/github/v/tag/HiroYokoyama/moleditpy_nmr_predicator_nmrshiftdb2?label=version)](https://github.com/HiroYokoyama/moleditpy_nmr_predicator_nmrshiftdb2/tags)
-[![GitHub Downloads](https://img.shields.io/github/downloads/HiroYokoyama/moleditpy_nmr_predicator_nmrshiftdb2/total)](https://github.com/HiroYokoyama/moleditpy_nmr_predicator_nmrshiftdb2/releases)
 
-A plugin for **Moleditpy** that predicts **1H** and **13C** NMR chemical shifts using the **nmrshiftdb2** machine learning models, and estimates the **coupling pattern** of every signal (s, d, t, q, dd, dq, ... with J in Hz). It provides an interactive spectrum viewer and 3D atom highlighting. Everything runs locally; nothing is sent over the network.
+Offline 1H/13C chemical-shift estimates from **nmrshiftdb2 experimental data**,
+using an original **Python + RDKit** reference search. Version 4 needs no Java,
+CDK, predictor JARs, network connection or first-run training.
 
-![](img/main.png)
+## Install and use
 
-## Features
+Install the complete release ZIP through MoleditPy's Plugin Manager, or extract
+its `nmr_predicator_nmrshiftdb2/` folder into your user plugin directory. Keep the
+`data/` folder and notices alongside the code. MoleditPy supplies the Python,
+RDKit, Qt and visualization environment.
 
-* **Prediction:** Predict 1H and 13C NMR shifts using the robust `nmrshiftdb2` Java library.
-* **Interactive Spectrum:** Visualize the result as a stick spectrum using Matplotlib.
-* **3D Visualization:** Hovering over peaks or table rows highlights the corresponding atoms in the Moleditpy 3D view (PyVista).
-* **Data Table:** Detailed list of chemical shifts and atom assignments.
-* **Coupling estimates** (since 2.5.0): multiplicity and J for every 1H signal, and the carbon multiplicity (s/d/t/q) with 1J(CH) for 13C. The spectrum can show the multiplets split at your spectrometer frequency.
-* **Line broadening** (on by default): Lorentzian lines instead of sticks, 1 Hz wide for 1H and 2 Hz for 13C, adjustable or switched off.
-* **CSV export** including the multiplicities and J values.
+Choose **Analysis → NMR Prediction (nmrshiftdb2)** and a nucleus. The result window
+shows chemical shifts, reference ranges, estimated coupling patterns and a
+spectrum. Table/peak selections highlight the corresponding atoms in 3D.
+Multiplets and Lorentzian broadening remain optional. CSV export includes
+couplings and the data attribution. The result window and plots identify the
+reference data and its license.
 
-![Ethyl (E)-crotonate, 1H, with multiplets](img/coupling.png)
+## What the estimates mean
 
-*Ethyl (E)-crotonate as predicted by nmrshiftdb2, with the estimated multiplets: dq 7.00, d 5.88, q 4.20, d 1.89, t 1.24 ppm.*
+- The reference condition is **CDCl3**. These estimates do not predict solvent
+  changes. Reported temperatures are restricted to 273–323 K; unreported
+  temperatures are included. There is no temperature/concentration correction.
+- A known connectivity can use its experimental reference-group median. Other
+  structures search rooted neighborhoods from radius 4 down to 2, requiring at
+  least **three independent molecular connectivities** for a local estimate.
+- Duplicate spectra and symmetric sites are aggregated within a molecular
+  connectivity before combining independent references.
+- Stereochemistry is pooled. Every carbon-bound proton on a given carbon gets
+  the same group estimate; stereospecific/diastereotopic H shifts and exchangeable
+  OH/NH/SH protons are not modeled. This changes the old Java model's behavior.
+- Charged molecules, radicals, disconnected structures, unsupported elements,
+  and isotope substitutions other than 1H/13C are rejected. The heavy-atom limit
+  is 256. Missing references are reported as unsupported, not replaced by guesses.
+- Min/max are the observed reference molecule-median range, **not a confidence
+  interval**. Multiplicity and J remain separate rule-based approximations in
+  `coupling.py`, not experimental fits or output of this shift estimator.
 
-### How the couplings are estimated
+This is a reference-search replacement, not a claim of numerical equivalence to
+the old Java predictor. It is intended for exploratory interpretation, not
+unqualified peak assignments.
 
-nmrshiftdb2 predicts shifts only. The multiplets come from `coupling.py`, a small rule-based module shared with the [CASCADE predictor](https://github.com/HiroYokoyama/moleditpy_nmr_predictor_cascade): geminal 12 Hz (=CH2 2 Hz), vicinal 7 Hz across a freely rotating bond, a Karplus curve on the 3D dihedral across ring bonds, alkene cis 10 / trans 17 Hz, aromatic ortho 7.5 / meta 1.5 Hz, and 1J(CH) from the hybridisation (125 / 157 / 159 / 249 Hz) plus heteroatom increments. OH/NH/SH protons are treated as exchanging. These are typical values for orientation, not a fit to a measured spectrum; spectra are drawn first-order. The About box shows the shared module version.
+## Validation
 
-## Requirements
+The pinned export contains 58,187 records. The accepted subset and exact counts
+are in `data/provenance.json`. Validation holds out entire nonstereochemical
+molecular connectivities, including duplicate spectra and stereoisomers, so a
+held-out molecule cannot also supply exact-structure or local training references.
 
-* **Moleditpy**: The host application.
-* **Java Runtime Environment (JRE)**: Java 8 or later must be installed and added to your system's PATH (required to run the prediction engine).
+| Nucleus | Held-out molecule/environment targets | Predicted | Coverage | MAE (ppm) | RMSE (ppm) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 1H | 531 | 277 | 52.2% | 0.163 | 0.309 |
+| 13C | 4,009 | 1,945 | 48.5% | 1.755 | 3.022 |
 
-## Installation
+Errors refer only to supported targets. This is an internal held-out split of
+one public export, not an independent experimental cohort or validation of
+stereospecific H predictions. The shipped index then uses the full accepted
+subset, including exact-connectivity references. Coverage of an individual
+molecule may be lower or higher than this table.
 
-1.  Download the latest `nmr_predicator_nmrshiftdb2.zip` from the [Releases](../../releases) page.
-2.  Extract the zip file into the `plugins` directory of your Moleditpy installation.
-    * Structure should look like: `.../plugins/nmr_predictor/__init__.py`
-3.  Ensure the `lib/` folder inside the plugin directory contains the required JAR files (`predictorh.jar`, `cdk-*.jar`, etc.).
+## Data and software licenses
 
-## Usage
+Contains information from [nmrshiftdb2](https://nmrshiftdb.nmr.uni-koeln.de/), made
+available under the **nmrshiftdb2 Database License**. The source data and derived
+reference index keep that license; the plugin's first-party software is **GPLv3**.
+See [LICENSING.md](LICENSING.md), the package's `NOTICE.txt`, and
+`THIRD_PARTY_SOURCES.md`. Keep the attribution when publicly using output.
 
-1.  Launch Moleditpy and draw or load a molecule.
-2.  Go to the menu: **Analysis** > **NMR Prediction (nmrshiftdb2)**.
-3.  Select the nucleus (`1H` or `13C`) and click **Predict**.
-4.  The result dialog will appear. You can:
-    * **Hover** over the graph peaks to see the assignment.
-    * **Click** on the table rows to highlight atoms in 3D.
-    * Use **Graph Controls** to zoom or auto-scale the spectrum, show or hide the multiplets, set the spectrometer frequency, and change the line broadening.
-    * The **Mult.** and **J (Hz)** columns give the estimated coupling pattern.
+The public data export is transformed directly using the included generation script.
 
-## Licenses & Credits
+## Development and reference regeneration
 
-This plugin bundles the following third-party libraries. Please refer to the `lib/` directory for full license texts.
+```sh
+python -m pip install pytest rdkit
+python -m pytest tests/ -q
+python scripts/build_reference.py --source /path/to/nmrshiftdb2withsignals.sd
+python scripts/release_common.py package --version 4.0.0
+```
 
-### nmrshiftdb2 Predictor
-* **Description:** Machine learning based NMR shift prediction.
-* **License:** **AGPL v3** (GNU Affero General Public License)
-* **Source Code:** [https://sourceforge.net/projects/nmrshiftdb2/](https://sourceforge.net/projects/nmrshiftdb2/)
-* **Copyright:** The nmrshiftdb2 Project
-
-### The Chemistry Development Kit (CDK)
-* **Description:** Java library for structural chemoinformatics.
-* **License:** **LGPL v2.1** (GNU Lesser General Public License)
-* **Source Code:** [https://github.com/cdk/cdk](https://github.com/cdk/cdk)
-* **Copyright:** The CDK Development Team
-
-### Plugin License
-This plugin itself is released under the **GNU General Public License v3 (GPL v3)**.
-
-### Bundled versions, source and database terms
-
-The existing [third-party notice](nmr_predicator_nmrshiftdb2/NOTICE.txt) lists the
-Java components. The predictor JARs match upstream SVN **r2333**, and their Java
-classes match **r2097**; CDK matches the official **2.11** release checksum.
-See [source availability and verification scope](nmr_predicator_nmrshiftdb2/THIRD_PARTY_SOURCES.md)
-and [the binary provenance manifest](nmr_predicator_nmrshiftdb2/THIRD_PARTY_PROVENANCE.json).
-The standalone predictor's complete corresponding-source/build recipe remains
-unverified; matching upstream binaries is not a complete redistribution clearance.
-
-The embedded prediction tables have a separate
-[NMRShiftDB2 Database License](nmr_predicator_nmrshiftdb2/lib/nmrshiftdb2-database-license.txt).
-When publicly using prediction outputs, include the attribution and license link
-specified in its section 4.3; the Python plugin's GPL does not replace these terms.
+Download the assigned SDF from the official data page linked in
+`THIRD_PARTY_SOURCES.md`. The builder checks its pinned SHA-256 before reading
+the data. The transformation, filtering and aggregation are fully included in
+the repository and ZIP. Runtime prediction never downloads or rebuilds data.

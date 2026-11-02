@@ -1,60 +1,21 @@
-===========================================================================
-NMR Prediction Plugin for Moleditpy - Licensing Information
-===========================================================================
+NMR Predictor for MoleditPy
 
-This plugin includes software developed by third parties.
-Below are the licenses and copyright notices for the bundled libraries.
+The plugin code is first-party GPLv3 code. The runtime uses Python and RDKit.
+No Java predictor, CDK binary, or upstream prediction implementation is bundled.
 
----------------------------------------------------------------------------
-1. The Chemistry Development Kit (CDK)
----------------------------------------------------------------------------
-File: lib/cdk-*.jar
-License: LGPL v2.1 (GNU Lesser General Public License, version 2.1)
-Source Code: https://github.com/cdk/cdk
-Copyright: The CDK Development Team
+Reference data: nmrshiftdb2, copyright and database rights retained by its
+contributors. The derivative reference index is distributed under the
+nmrshiftdb2 Database License, separately from the plugin code's GPL.
 
-This library is free software; you can redistribute it and/or modify it
-under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation; either version 2.1 of the License, or (at
-your option) any later version.
-
-Full text of the LGPL v2.1: See included lib/lgpl-2.1.txt
-Bundled version: CDK 2.11, matching the official release SHA-256.
-Versioned source: https://github.com/cdk/cdk/tree/cdk-2.11
-
----------------------------------------------------------------------------
-2. nmrshiftdb2 Predictor
----------------------------------------------------------------------------
-File: lib/predictorh.jar, lib/predictorc.jar
-License: AGPL (GNU Affero General Public License)
-Source Code: https://sourceforge.net/projects/nmrshiftdb2/
-Copyright: The nmrshiftdb2 Project
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU Affero General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-Full text of the AGPL: See included lib/agpl-3.0.txt
-Bundled binaries match upstream SVN r2333 (2023-09-30) exactly.
-All ten Java classes in each JAR match the earlier r2097 (2020-11-05).
-Binary hashes and pinned upstream URLs: THIRD_PARTY_PROVENANCE.json
-Source availability and verification scope: THIRD_PARTY_SOURCES.md
-
----------------------------------------------------------------------------
-3. nmrshiftdb2 prediction database
----------------------------------------------------------------------------
-The nmrshiftdb.csv inside each predictor JAR has its own data license.
-It is not relicensed by the plugin's GPL or the predictor code's AGPL.
-Full text: lib/nmrshiftdb2-database-license.txt (upstream SVN r2333).
-License URL:
-https://nmrshiftdb.nmr.uni-koeln.de/nmrshiftdbhtml/nmrshiftdb2datalicense.txt
-
-Publicly used outputs must carry the attribution required by section 4.3.
-Suggested attribution (include the license URL above):
 Contains information from nmrshiftdb2 (www.nmrshiftdb.org), which is made
-available here under the nmrshiftdb2 Database License.
-Section 4.5 requires functional software relying on this data to use an
-OSI-approved license. This plugin is GPLv3; the data retains its own terms.
+available under the nmrshiftdb2 Database License.
+License: data/DATABASE-LICENSE.txt
+Source: https://nmrshiftdb.nmr.uni-koeln.de/
+Public license: https://nmrshiftdb.nmr.uni-koeln.de/nmrshiftdbhtml/nmrshiftdb2datalicense.txt
 
-===========================================================================
+data/provenance.json identifies the public SDF and its SHA-256. The complete
+transformation is included as scripts/build_reference.py and database.py.
+data/reference.json.gz contains the complete machine-readable derivative index.
+
+RDKit, PySide6/Qt, NumPy, Matplotlib and PyVista are separately installed runtime
+dependencies and retain their own licenses. They are not bundled in this ZIP.

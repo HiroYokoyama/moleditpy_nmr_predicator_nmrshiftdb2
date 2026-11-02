@@ -8,7 +8,9 @@
   ],
   "include": [
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "LICENSING.md",
+    "scripts/build_reference.py"
   ],
   "exclude": [
     "*/__pycache__/*",

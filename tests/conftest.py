@@ -146,6 +146,7 @@ class _QLabel:
         self._text = text
         self.setStyleSheet = MagicMock()
         self.setWordWrap = MagicMock()
+        self.setOpenExternalLinks = MagicMock()
         self.setText = MagicMock(side_effect=self._set_text)
 
     def _set_text(self, text):
@@ -287,6 +288,7 @@ def _install_stubs() -> None:
             self._axes = []
 
         def subplots_adjust(self, *args, **kwargs): pass
+        def text(self, *args, **kwargs): return MagicMock()
 
         @property
         def axes(self):

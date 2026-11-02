@@ -1,0 +1,50 @@
+{
+  "audit": {
+    "accepted_spectra": 2494,
+    "records": 58187,
+    "rejected_assignments": 1,
+    "rejected_calculated_spectra": 8280,
+    "rejected_chemistry": 8624,
+    "rejected_other_or_missing_solvent": 43404,
+    "rejected_parse": 158,
+    "rejected_temperature": 1020
+  },
+  "conditions": "CDCl3; reported 273-323 K or unreported temperature; stereo pooled; carbon-bound H group medians",
+  "connectivity_groups": 1986,
+  "encoder": "moleditpy-rdkit-fragment-v1",
+  "entries": 25965,
+  "exact_connectivity_minimum_molecules": 1,
+  "index_sha256": "4a9b9de8787e2fa128277be4cc77ed90b251a6ec7f69da2a4c2744b331199f51",
+  "minimum_independent_molecules": 3,
+  "rdkit_version": "2026.03.6",
+  "solvent": "CDCl3",
+  "source_sha256": "0e86688360e23c88ccf0eb82a1251315fa57ec6f5b376dc8886f3311793a0afe",
+  "source_url": "https://downloads.sourceforge.net/project/nmrshiftdb2/data/nmrshiftdb2withsignals.sd",
+  "split": "SHA256(nonstereo canonical connectivity SMILES) first 8 hex digits modulo 5 = 0 held out",
+  "validation": {
+    "13C": {
+      "coverage": 0.4851583936143677,
+      "mae_ppm": 1.7546751388174804,
+      "predicted": 1945,
+      "radius_counts": {
+        "2": 1058,
+        "3": 446,
+        "4": 441
+      },
+      "rmse_ppm": 3.0219302366734233,
+      "targets": 4009
+    },
+    "1H": {
+      "coverage": 0.5216572504708098,
+      "mae_ppm": 0.16330101083032492,
+      "predicted": 277,
+      "radius_counts": {
+        "2": 135,
+        "3": 70,
+        "4": 72
+      },
+      "rmse_ppm": 0.30887878589942097,
+      "targets": 531
+    }
+  }
+}
