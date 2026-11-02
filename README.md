@@ -1,6 +1,9 @@
 # NMR Prediction Plugin for MoleditPy
 
 [![CI](https://github.com/HiroYokoyama/moleditpy_nmr_predicator_nmrshiftdb2/actions/workflows/test.yml/badge.svg)](https://github.com/HiroYokoyama/moleditpy_nmr_predicator_nmrshiftdb2/actions/workflows/test.yml)
+![Test Coverage](https://img.shields.io/badge/coverage->90%25-green)
+[![GitHub tag](https://img.shields.io/github/v/tag/HiroYokoyama/moleditpy_nmr_predicator_nmrshiftdb2?label=version)](https://github.com/HiroYokoyama/moleditpy_nmr_predicator_nmrshiftdb2/tags)
+[![GitHub Downloads](https://img.shields.io/github/downloads/HiroYokoyama/moleditpy_nmr_predicator_nmrshiftdb2/total)](https://github.com/HiroYokoyama/moleditpy_nmr_predicator_nmrshiftdb2/releases)
 
 Offline 1H/13C chemical-shift estimates from **nmrshiftdb2 experimental data**,
 using an original **Python + RDKit** reference search. The ZIP includes prepared reference data and runs offline; no Java runtime
@@ -173,7 +176,7 @@ python -m pip install pytest rdkit
 python -m pytest tests/ -q
 git lfs pull --include="data-source/nmrshiftdb2withsignals.sd"
 python scripts/build_reference.py
-python scripts/release_common.py package --version 4.0.0
+python scripts/release_common.py package --version 4.0.1
 ```
 
 The original SDF snapshot is in `data-source/` through Git LFS; it is excluded
