@@ -32,7 +32,7 @@ PTABLE = Chem.GetPeriodicTable()
 
 # --- Metadata (Plugin Development Manual Section 2) ---
 PLUGIN_NAME = "NMR Predictor (nmrshiftdb2)"
-PLUGIN_VERSION = "4.0.1"
+PLUGIN_VERSION = "4.0.2"
 PLUGIN_LICENSE = "GPL-3.0-only"
 PLUGIN_AUTHOR = "HiroYokoyama"
 PLUGIN_DESCRIPTION = "Estimate 1H and 13C NMR shifts from local solvent-filtered reference data using Python and RDKit."
@@ -440,12 +440,12 @@ class ResultDialog(QDialog):
         self.canvas.draw()
 
     def on_hover(self, event):
-        """マウス移動時の処理 - 選択状態を優先するよう修正"""
+        """Handle pointer movement while preserving the persistent selection."""
         if event.inaxes is None or event.xdata is None:
             if self._hover_idx != -1:
                 self._hover_idx = -1
                 self._update_graph_highlight(None, is_hover=True)
-                # 修正: 選択状態があれば復元、なければクリア
+                # Restore the persistent selection, or clear temporary highlights.
                 self._restore_persistent_highlight()
             return
 
@@ -465,23 +465,21 @@ class ResultDialog(QDialog):
 
                 target_ppm = shifts[min_idx]
 
-                # 修正: 現在選択中のバー（Persistent）にホバーした場合は何もしない（赤のまま維持）
-                # 「ハイライトされたバーは無効に」への対応
+                # Keep the selected peak red instead of adding a hover highlight.
                 if (
                     self._persistent_ppm is not None
                     and abs(target_ppm - self._persistent_ppm) < 1e-4
                 ):
                     self._update_graph_highlight(
                         None, is_hover=True
-                    )  # オレンジ線は消す
+                    )  # Remove the orange hover line.
                     return
 
-                # 通常のホバー処理（未選択のバー）
+                # Highlight an unselected peak on hover.
                 self._update_graph_highlight(target_ppm, is_hover=True)
 
-                # 3Dハイライト（一時的）
-                # highlight_atomを呼ぶと一時的にPersistent（赤）が消えるが、
-                # 下記のelseブロックでの復元処理により、離れると赤に戻るようになる。
+                # Temporarily replace the persistent 3D highlight. Restore it
+                # when the pointer leaves the peak.
                 self.highlight_atom(min_idx, persistent=False)
 
                 item = self.data[min_idx]
@@ -491,19 +489,19 @@ class ResultDialog(QDialog):
                 )
                 self.status_label.setStyleSheet("color: #e67e22; font-weight: bold;")
         else:
-            # ピークから離れた場合
+            # Restore the selection when the pointer leaves all peaks.
             if self._hover_idx != -1:
                 self._hover_idx = -1
                 self._update_graph_highlight(None, is_hover=True)
                 self._restore_persistent_highlight()
 
     def _restore_persistent_highlight(self):
-        """選択状態（Persistent）があれば復元し、なければクリアする"""
+        """Restore the persistent selection, or clear temporary highlights."""
         if self._persistent_ppm is not None:
-            # 選択状態を復元（ホバー前の状態に戻す）
+            # Restore the selection that was active before hovering.
             for i, item in enumerate(self.data):
                 if abs(item["ppm"] - self._persistent_ppm) < 1e-4:
-                    # persistent=Trueで呼び直すことで赤色に戻す
+                    # A persistent highlight restores the red selection color.
                     self.highlight_atom(i, persistent=True)
                     break
         else:
@@ -534,21 +532,20 @@ class ResultDialog(QDialog):
         if distances[min_idx] < tolerance:
             ppm = shifts[min_idx]
 
-            # 1. Update Table Selection (既存の処理: テーブルの行を選択状態にする)
+            # Select the table rows corresponding to the clicked peak.
             self.table.clearSelection()
             self.table.setSelectionMode(QTableWidget.SelectionMode.MultiSelection)
             for i, item in enumerate(self.data):
-                # 同じPPMを持つ行をすべて選択
+                # Select every row at the same chemical shift.
                 if abs(item["ppm"] - ppm) < 1e-4:
                     self.table.selectRow(i)
             self.table.setSelectionMode(QTableWidget.SelectionMode.ExtendedSelection)
 
-            # 2. Trigger Highlight (追加: ここで可視化メソッドを呼ぶ)
-            # これにより、グラフに赤い線が引かれ、3Dモデルに赤い球が表示されます
+            # Show a red plot marker and red spheres on the corresponding 3D atoms.
             self.highlight_atom(min_idx, persistent=True)
 
         else:
-            # クリックがピークから遠い場合は選択解除
+            # Clear the selection when the click is far from every peak.
             self.clear_selection()
 
     def on_table_click(self, row, col):
