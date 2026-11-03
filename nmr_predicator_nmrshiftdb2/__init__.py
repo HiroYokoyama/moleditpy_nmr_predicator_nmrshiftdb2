@@ -32,7 +32,7 @@ PTABLE = Chem.GetPeriodicTable()
 
 # --- Metadata (Plugin Development Manual Section 2) ---
 PLUGIN_NAME = "NMR Predictor (nmrshiftdb2)"
-PLUGIN_VERSION = "4.0.1"
+PLUGIN_VERSION = "4.0.2"
 PLUGIN_LICENSE = "GPL-3.0-only"
 PLUGIN_AUTHOR = "HiroYokoyama"
 PLUGIN_DESCRIPTION = "Estimate 1H and 13C NMR shifts from local solvent-filtered reference data using Python and RDKit."
