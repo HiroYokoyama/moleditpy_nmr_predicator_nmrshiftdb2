@@ -1,7 +1,7 @@
 """Original Python/RDKit local-environment search; no Java predictor code.
 
 The generated reference index is separately licensed NMRShiftDB2 data. This
-module is first-party GPLv3 code. Keys are our own encodings, not CDK HOSE codes.
+module is first-party GPLv3 code. Keys encode rooted molecular environments.
 """
 
 from functools import lru_cache

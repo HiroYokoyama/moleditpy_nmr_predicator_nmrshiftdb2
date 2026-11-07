@@ -15,7 +15,7 @@ The source digest was checked against a direct download from the official data
 distribution. `scripts/build_reference.py` reads its atom-assigned 1H/13C spectra
 and generates rooted-fragment search keys with solvent partitions, tetrahedral
 configuration and E/Z bond descriptors. Enantiomers share references in the
-supported achiral solvents; unspecified stereo remains separate. This is not a CDK HOSE table.
+supported achiral solvents; unspecified stereo remains separate.
 `data/provenance.json` records filtering, aggregation and held-out validation.
 The full machine-readable derivative index and its transformation source are
 provided. The pinned full SDF is also stored in `data-source/` through Git LFS. It is not needed at runtime.

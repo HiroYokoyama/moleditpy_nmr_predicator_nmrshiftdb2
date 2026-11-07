@@ -27,7 +27,8 @@ License URI: https://nmrshiftdb.nmr.uni-koeln.de/nmrshiftdbhtml/nmrshiftdb2datal
 
 The index embeds its data-license URI, attribution and rights notice. Its source
 export and SHA-256, filtering conditions and validation are recorded in
-`data/provenance.json` and `THIRD_PARTY_SOURCES.md`. The complete transformation
+[provenance.json](https://github.com/HiroYokoyama/moleditpy_nmr_predicator_nmrshiftdb2/blob/v4.0.3/nmr_predicator_nmrshiftdb2/data/provenance.json) and
+[THIRD_PARTY_SOURCES.md](https://github.com/HiroYokoyama/moleditpy_nmr_predicator_nmrshiftdb2/blob/v4.0.3/nmr_predicator_nmrshiftdb2/THIRD_PARTY_SOURCES.md). The complete transformation
 source is included as `database.py` and `scripts/build_reference.py`; the complete
 derivative index is included in the runtime ZIP in a machine-readable format.
 The original SDF is available from the repository through Git LFS and is not a

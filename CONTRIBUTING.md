@@ -1,56 +1,91 @@
-# Contributing Guidelines
+# Contributing
 
-Thank you for your interest in contributing! We welcome contributions from the community to make this project more robust and feature-rich.
+## Report a problem
 
-To maintain the high quality and stability of the application, please review the following guidelines.
+Include the steps to reproduce, expected and actual behavior, traceback (if
+available), OS, Python, MoleditPy and plugin versions. For reference-search
+issues, include a shareable structure or SMILES, nucleus and selected solvent.
 
-## 1. How to Report Bugs
+## Development setup
 
-When opening an Issue, please include:
-1.  **Steps to Reproduce:** A detailed list of actions taken.
-2.  **Expected Behavior vs. Actual Behavior.**
-3.  **Logs / Traceback:** If applicable, please attach the contents of the console output or log files.
-4.  **Environment:** OS, Python version, library/package version, etc.
+Use Python 3.13 to match the main test workflow. From the repository root:
 
-## 2. Development Setup
+```sh
+python -m pip install pytest rdkit
+python -m pytest tests/ -q
+```
 
-1.  Clone the repository.
-2.  Copy or symlink the plugin package folder into your **user plugin directory** of the main **MoleditPy** application so it is discovered automatically at startup:
-    - **Windows**: `C:\Users\<YourName>\.moleditpy\plugins\`
-    - **Linux / macOS**: `~/.moleditpy/plugins/`
-3.  Install development dependencies as required by the project.
+The main suite uses GUI stubs. For integration with the real application, keep
+`python_molecular_editor` beside this checkout, or set `CI_MAIN_APP_SRC` to its
+`moleditpy/src` directory. For interactive GUI work, use MoleditPy >=5.0.0,
+<6.0.0 with its PySide6, RDKit and visualization dependencies, and copy or symlink
+`nmr_predicator_nmrshiftdb2/` into the user plugin directory:
 
-## 3. Coding Standards
+- Windows: `C:\Users\<YourName>\.moleditpy\plugins\`
+- Linux / macOS: `~/.moleditpy/plugins/`
 
-We maintain high code quality standards. Before submitting a Pull Request (PR), ensure your code meets the following:
+Retain the package's `data/` directory and notices. Prediction uses the bundled
+index; the original SDF is needed only to regenerate reference data.
 
-* **Style:** Follow standard style guidelines (e.g. PEP 8 for Python).
-* **Type Hinting:** Use type hints for function arguments and return values where applicable.
+## Checks
 
-## 4. Testing & Stability Policy
+```sh
+python -m pytest tests/ -q
+python -m pip install ruff
+python -m ruff check .
+```
 
-### A. Core Logic & Testing
-* Core logic and utility modules should have automated unit tests.
-* Maintain high test coverage for any new features.
+Real Qt callbacks are checked separately, in a fresh process with PySide6:
 
-### B. Error Handling — No Hiding, No Crashing
-* Stability policy: **never hide errors, never crash.**
-* Wrap UI slots, event handlers, or callbacks in `try/except` block, log the traceback, and show a status message or dialog to the user.
-* Internal helpers should propagate exceptions rather than swallowing them.
-* Write logs/tracebacks on caught exceptions; empty `except` blocks are not acceptable.
+```sh
+python -m pip install PySide6-Essentials==6.11.2
+python -m unittest discover -s tests -p test_qt_callbacks.py -v
+```
 
-### C. GUI & Interaction
-* **Avoid Broad Exceptions:** Minimize the use of broad `try-except Exception` blocks in internal helper code. Prefer granular, specific exception types.
-* **Manual Verification:** Verify GUI changes manually and document your verification in the PR.
+The callback CI sets `REQUIRE_REAL_QT=1`, `REQUIRED_QT_VERSION=6.11.2` and
+`QT_QPA_PLATFORM=offscreen`, and runs on Windows, macOS and Linux. The main test
+workflow runs on Windows. See [validation and benchmarks](docs/VALIDATION.md)
+for scientific validation, regression coverage and timing methodology.
 
-## 5. Pull Request Process
+## Reference regeneration
 
-1.  **Branching:** Create a new branch for your feature or fix.
-2.  **Verification:**
-    * Run tests and check linting before submitting.
-3.  **Description:** Describe your changes clearly. If it's a UI change, screenshots are highly appreciated.
-4.  **Review:** Wait for a maintainer to review your code.
+From a repository checkout with Git LFS installed:
 
-## 6. License
+```sh
+git lfs pull --include="data-source/nmrshiftdb2withsignals.sd"
+python scripts/build_reference.py
+```
 
-By contributing, you agree that your contributions will be licensed under the project's license.
+The builder verifies the source checksum before processing the SDF. Source
+metadata and rebuild options are documented in
+[THIRD_PARTY_SOURCES.md](https://github.com/HiroYokoyama/moleditpy_nmr_predicator_nmrshiftdb2/blob/v4.0.3/nmr_predicator_nmrshiftdb2/THIRD_PARTY_SOURCES.md).
+Review provenance and validation changes whenever reference generation changes.
+
+## Packaging and release
+
+Set `PLUGIN_VERSION` in `nmr_predicator_nmrshiftdb2/__init__.py`, then run:
+
+```sh
+python scripts/release_common.py verify --version 4.0.3
+python scripts/release_common.py package --version 4.0.3
+```
+
+Use the intended version in both commands. The release configuration includes
+runtime data, notices, generation scripts and documentation; the original SDF
+and screenshots are excluded from the ZIP. Documentation links to hosted
+screenshots. A `v*.*.*` tag triggers the release workflow, which publishes the
+ZIP and notifies the plugin collection when `REGISTRY_PAT` is configured.
+Confirm the collection's registry URL and SHA-256 after publishing.
+
+Shared maintenance scripts are managed upstream; see
+[scripts/COMMON_TOOLS.md](scripts/COMMON_TOOLS.md).
+
+## Pull requests
+
+Use a branch and describe the resulting behavior and verification. Add tests
+for changed prediction or interaction behavior, and manually verify GUI
+changes. Keep internal exceptions visible to callers; UI callbacks should log
+tracebacks and show an actionable message. Avoid empty exception handlers.
+
+Contributions to plugin software use GPL-3.0-only. Source and derived reference
+data retain the separate database license; see [LICENSING.md](LICENSING.md).
