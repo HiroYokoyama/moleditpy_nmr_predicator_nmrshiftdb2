@@ -11,11 +11,7 @@
     "LICENSE",
     "LICENSING.md",
     "scripts/build_reference.py",
-    "scripts/benchmark_reference.py",
-    "ARCHITECTURE.md",
-    "CONTRIBUTING.md",
-    "docs",
-    "scripts/COMMON_TOOLS.md"
+    "scripts/benchmark_reference.py"
   ],
   "exclude": [
     "*/__pycache__/*",

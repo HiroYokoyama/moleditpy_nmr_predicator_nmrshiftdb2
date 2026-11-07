@@ -66,14 +66,15 @@ Review provenance and validation changes whenever reference generation changes.
 Set `PLUGIN_VERSION` in `nmr_predicator_nmrshiftdb2/__init__.py`, then run:
 
 ```sh
-python scripts/release_common.py verify --version 4.0.3
-python scripts/release_common.py package --version 4.0.3
+python scripts/release_common.py verify --version 4.0.4
+python scripts/release_common.py package --version 4.0.4
 ```
 
 Use the intended version in both commands. The release configuration includes
-runtime data, notices, generation scripts and documentation; the original SDF
-and screenshots are excluded from the ZIP. Documentation links to hosted
-screenshots. A `v*.*.*` tag triggers the release workflow, which publishes the
+runtime data, required notices, the README and reference-generation/benchmark
+scripts. Architecture, contribution and validation guides, maintenance-tool
+documentation, the original SDF and screenshots remain in the repository and
+are excluded from the ZIP. The README links to hosted guides. A `v*.*.*` tag triggers the release workflow, which publishes the
 ZIP and notifies the plugin collection when `REGISTRY_PAT` is configured.
 Confirm the collection's registry URL and SHA-256 after publishing.
 

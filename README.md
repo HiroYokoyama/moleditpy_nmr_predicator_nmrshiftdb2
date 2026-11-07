@@ -65,7 +65,7 @@ sites and the reported reference ranges/counts explicitly when assigning peaks.
 
 ## Validation and examples
 
-[Validation and benchmarks](docs/VALIDATION.md) contains the held-out error and
+[Validation and benchmarks](https://github.com/HiroYokoyama/moleditpy_nmr_predicator_nmrshiftdb2/blob/v4.0.4/docs/VALIDATION.md) contains the held-out error and
 coverage tables, representative-molecule regression checks, result screenshots,
 and reproducible timing measurements. Errors are measured only for supported
 targets; reference coverage depends on the molecule and selected solvent.
@@ -75,12 +75,12 @@ targets; reference coverage depends on the molecule and selected solvent.
 Contains information from [nmrshiftdb2](https://nmrshiftdb.nmr.uni-koeln.de/), made
 available under the **nmrshiftdb2 Database License**. The source data and derived
 reference index keep that license; the plugin's first-party software is **GPLv3**.
-See [LICENSING.md](LICENSING.md), [NOTICE.txt](https://github.com/HiroYokoyama/moleditpy_nmr_predicator_nmrshiftdb2/blob/v4.0.3/nmr_predicator_nmrshiftdb2/NOTICE.txt), and
-[THIRD_PARTY_SOURCES.md](https://github.com/HiroYokoyama/moleditpy_nmr_predicator_nmrshiftdb2/blob/v4.0.3/nmr_predicator_nmrshiftdb2/THIRD_PARTY_SOURCES.md). Keep the attribution when publicly using output.
+See [LICENSING.md](LICENSING.md), [NOTICE.txt](https://github.com/HiroYokoyama/moleditpy_nmr_predicator_nmrshiftdb2/blob/v4.0.4/nmr_predicator_nmrshiftdb2/NOTICE.txt), and
+[THIRD_PARTY_SOURCES.md](https://github.com/HiroYokoyama/moleditpy_nmr_predicator_nmrshiftdb2/blob/v4.0.4/nmr_predicator_nmrshiftdb2/THIRD_PARTY_SOURCES.md). Keep the attribution when publicly using output.
 
 ## Documentation and development
 
-- [Architecture](ARCHITECTURE.md): search keys, aggregation and prediction flow.
-- [Contributing](CONTRIBUTING.md): development setup, checks, regeneration and packaging.
-- [Data sources](https://github.com/HiroYokoyama/moleditpy_nmr_predicator_nmrshiftdb2/blob/v4.0.3/nmr_predicator_nmrshiftdb2/THIRD_PARTY_SOURCES.md): pinned export and rebuild instructions.
+- [Architecture](https://github.com/HiroYokoyama/moleditpy_nmr_predicator_nmrshiftdb2/blob/v4.0.4/ARCHITECTURE.md): search keys, aggregation and prediction flow.
+- [Contributing](https://github.com/HiroYokoyama/moleditpy_nmr_predicator_nmrshiftdb2/blob/v4.0.4/CONTRIBUTING.md): development setup, checks, regeneration and packaging.
+- [Data sources](https://github.com/HiroYokoyama/moleditpy_nmr_predicator_nmrshiftdb2/blob/v4.0.4/nmr_predicator_nmrshiftdb2/THIRD_PARTY_SOURCES.md): pinned export and rebuild instructions.
 - [License scope](LICENSING.md): software, database and dependency terms.
